@@ -8,8 +8,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Ch
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DropdownMenuDemo from '../Dropdown/DropdownMenuDemo'
-import { DropdownMenuGroup, DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { DropdownMenuShortcut } from "@/components/ui/dropdown-menu";
+import ContextMenuComp from "../ContextMenu/ContextMenuComp";
 
 type TableRow = Record<string, unknown>
 
@@ -18,6 +17,25 @@ type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
 type TableProp = {
   url: string,
   setUrl: StateSetter<string>
+}
+
+type MenuSubItem = {
+  id: string
+  label: string
+  checked: boolean
+  toggleVisibility: (value?: boolean) => void
+}
+
+type MenuItem = {
+  label: string
+  shortcut?: string
+  onClick?: () => void,
+  subItems?: MenuSubItem[]
+}
+
+type DataEvent = {
+  label: string,
+  onClick?: (id: string)=> void
 }
 
 const CHAR_WIDTH = 10; // px per character (tweak)
@@ -93,8 +111,7 @@ export default function DataTable(props: TableProp) {
     () => [
       {
         id: 'select',
-        header: ({ table, column }) => {
-          console.log(column)
+        header: ({ table }) => {
           return <IndeterminateCheckbox
             {...{
               size: 40,
@@ -161,10 +178,18 @@ export default function DataTable(props: TableProp) {
     table.getColumn('select')?.toggleVisibility()
   }
 
+  // const handleSelectField = () => {
+  //   setColumnsSelection(!columnsSelection)
+  // }
+
   const handleResetFilters = () => {
     table.resetRowSelection()
     table.resetColumnVisibility()
     setPagination({ pageIndex: 0, pageSize: 10 })
+  }
+  
+  const handleCopyDataID = (id: string) =>{
+    console.log(id)
   }
 
   const handleDownloadExcel = () => {
@@ -174,6 +199,33 @@ export default function DataTable(props: TableProp) {
     let excelData = selectedRows.length > 0 ? selectedRows : filteredRows
     exportToExcel<TableRow>(excelData, 'filtered-data')
   }
+
+  const subItems: MenuSubItem[] = table
+  .getAllLeafColumns() 
+  .filter(column => column.id !== "select")
+  .map(column => ({
+    id: column.id,
+    label:
+      typeof column.columnDef.header === "string"
+        ? column.columnDef.header
+        : column.id,
+    checked: column.getIsVisible(),
+    toggleVisibility: (value?: boolean) =>{
+      column.toggleVisibility(value)
+    }
+  }))
+
+  const actionItems: MenuItem[] = [
+    { label: 'Select Data', onClick: handleSelectData },
+    { label: 'Select Field', subItems },
+    { label: 'Download Excel', onClick: handleDownloadExcel }
+  ]
+
+  const dataEvents: DataEvent[] = [
+    { label: 'Copy ID', onClick: handleCopyDataID},
+    { label: 'Edit Data', onClick: (id: string)=>{}},
+    { label: 'Delete Data', onClick: (id: string)=>{}},
+  ]
 
   useEffect(() => {
     const fetchData = async () => {
@@ -207,19 +259,14 @@ export default function DataTable(props: TableProp) {
         <div className="flex items-center space-x-2.5">
           <label>Search</label>
           <Input type="text" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 bg-slate-400! focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
-          <p className="pr-2.5">Page No: {pagination.pageIndex + 1}</p>
+          <p>Page No: {pagination.pageIndex + 1}</p>
         </div>
         <div className="flex items-center space-x-2.5">
-          <Button variant={'outline'} className="h-9 flex items-center bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none"
-            onClick={handleSelectData}
-          >Select Data</Button>
-          <Button variant={'outline'} className="h-9 flex items-center bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none"
-            onClick={() => setColumnsSelection(!columnsSelection)}
-          >Select Field</Button>
-          <DropdownMenuDemo>
-            <Button variant={'outline'} className="h-9 flex items-center bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none"
-              onClick={() => setColumnsSelection(!columnsSelection)}
-            ><EllipsisVertical/></Button>
+          <Button variant={'outline'} className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white">Create Data</Button>
+          <DropdownMenuDemo items={actionItems}>
+            <Button variant={'outline'} className="h-9 flex items-center bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none">
+              <EllipsisVertical />
+            </Button>
           </DropdownMenuDemo>
         </div>
       </div>
@@ -273,12 +320,14 @@ export default function DataTable(props: TableProp) {
             {table.getRowModel().rows.map(row => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map(cell => (
+                  <ContextMenuComp dataEvents={dataEvents} cell={cell}>
                   <TableCell
                     key={cell.id}
                     className="border px-2 py-1"
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
+                  </ContextMenuComp>
                 ))}
               </TableRow>
             ))}
@@ -303,7 +352,7 @@ export default function DataTable(props: TableProp) {
         <div className="per-page flex items-center space-x-2.5">
           <span>Per Page: </span>
           <Input value={pagination.pageSize} onChange={handleChange} className="scroll-hide h-9 w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
-          <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleDownloadExcel} variant="ghost">Download Excel</Button>
+          {/* <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleDownloadExcel} variant="ghost">Download Excel</Button> */}
           <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleResetFilters} variant="outline">Reset</Button>
         </div>
       </div>
