@@ -1,6 +1,6 @@
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLProps } from "react";
-import type { Column, ColumnDef, SortingState, VisibilityState } from '@tanstack/react-table'
+import type { Column, ColumnDef, SortingState, VisibilityState, ColumnPinningState } from '@tanstack/react-table'
 import getData from "../../../utils/getData";
 import { exportToExcel } from "../../../utils/exportToExcel";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import DropdownMenuDemo from '../Dropdown/DropdownMenuDemo'
 
 const CHAR_WIDTH = 10;
-const MIN_COL_WIDTH = 100;
+const MIN_COL_WIDTH = 200;
 const MAX_COL_WIDTH = 400;
 
 type TableRow = Record<string, unknown>
@@ -55,15 +55,22 @@ export default function DataTable(props: TableProp) {
     select: false
   })
 
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({
+    left: [],
+    right: ['actions']
+  })
+
   const [rowSelection, setRowSelection] = useState({})
 
   const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue>, tableType: string): CSSProperties => {
+    const isPinned = column.getIsPinned()
     return {
-      position: column.getIsPinned() ? 'sticky' : 'relative',
-      left: column.getIsPinned() === 'left' ? column.getStart('left') : undefined,
-      zIndex: column.getIsPinned() ? 3 : 0,
+      position: isPinned ? 'sticky' : 'relative',
+      left: isPinned === 'left' ? column.getStart('left') : undefined,
+      right: isPinned === 'right' ? column.getAfter('right') : undefined,
+      zIndex: isPinned ? 3 : 0,
       width: '100%',
-      background: tableType === 'row' && column.getIsPinned() ? 'white' : ''
+      background: tableType === 'row' && isPinned ? 'white' : ''
     }
   }
 
@@ -116,6 +123,7 @@ export default function DataTable(props: TableProp) {
             />
           </div>
         ),
+        enablePinning: true
       },
       ...fields.map(field => (
         {
@@ -124,7 +132,8 @@ export default function DataTable(props: TableProp) {
           header: field.charAt(0).toUpperCase() + field.slice(1),
           size: getColumnWidthFromData(data, field),
           minSize: 100,
-          maxSize: 400
+          maxSize: 400,
+          enablePinning: true
         }
       )),
       {
@@ -151,7 +160,7 @@ export default function DataTable(props: TableProp) {
     state: {
       sorting, pagination,
       globalFilter, rowSelection,
-      columnVisibility, 
+      columnVisibility, columnPinning 
     },
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
@@ -166,6 +175,7 @@ export default function DataTable(props: TableProp) {
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    onColumnPinningChange: setColumnPinning
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,7 +233,7 @@ export default function DataTable(props: TableProp) {
   ]
 
   const actionItemsRow: MenuItem[] = [
-    { label: 'Copy ID', onClick: ()=> handleCopyDataID},
+    { label: 'Copy ID', onClick: () => handleCopyDataID },
     { label: 'Edit Data', onClick: () => { } },
     { label: 'Delete Data', onClick: () => { } },
   ]
@@ -239,7 +249,7 @@ export default function DataTable(props: TableProp) {
   }, [url, pagination.pageIndex, pagination.pageSize])
 
   return (
-    <div className="table-parent h-[92.5svh] lg:h-[85svh] w-[90svw] lg:w-[85svw] mx-auto bg-white shadow-lg flex flex-col">
+    <div className="table-parent h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw] mx-auto flex flex-col">
       <div className="table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5">
         <div className="lg:w-1/3 flex items-center space-x-2.5">
           <Input type="text" placeholder="Search" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-1/2 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
@@ -261,7 +271,7 @@ export default function DataTable(props: TableProp) {
         </div>
       </div>
       <div className="table-wrapper flex-1 flex overflow-auto 
-  scrollbar-none -ms-overflow-style-none scroll-hide relative">
+  scrollbar-none -ms-overflow-style-none scroll-hide relative bg-white shadow-lg">
         <Table className="border-collapse h-full w-full">
           <TableHeader className="bg-white z-10 h-14">
             {table.getHeaderGroups().map(headerGroup => (
