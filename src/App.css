@@ -27,6 +27,14 @@ th, td {
   white-space: nowrap;
 }
 
+.pinned-column::before{
+  position: absolute;
+  content: '';
+  z-index: -1;
+  height: 100%;
+  width: 100%;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

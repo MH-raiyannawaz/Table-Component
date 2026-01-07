@@ -1,46 +1,21 @@
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
-import { useEffect, useMemo, useRef, useState, type HTMLProps } from "react";
-import type { ColumnDef, SortingState, VisibilityState } from '@tanstack/react-table'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLProps } from "react";
+import type { Column, ColumnDef, SortingState, VisibilityState } from '@tanstack/react-table'
 import getData from "../../../utils/getData";
 import { exportToExcel } from "../../../utils/exportToExcel";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, EllipsisVertical } from "lucide-react";
+import type { TableProp, MenuItem, MenuSubItem } from './types'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, FunnelIcon, ListChecks, PinIcon, PinOff, PlusCircle, SlidersVertical, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DropdownMenuDemo from '../Dropdown/DropdownMenuDemo'
-import ContextMenuComp from "../ContextMenu/ContextMenuComp";
+
+const CHAR_WIDTH = 10;
+const MIN_COL_WIDTH = 100;
+const MAX_COL_WIDTH = 400;
 
 type TableRow = Record<string, unknown>
 
-type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
-
-type TableProp = {
-  url: string,
-  setUrl: StateSetter<string>
-}
-
-type MenuSubItem = {
-  id: string
-  label: string
-  checked: boolean
-  toggleVisibility: (value?: boolean) => void
-}
-
-type MenuItem = {
-  label: string
-  shortcut?: string
-  onClick?: () => void,
-  subItems?: MenuSubItem[]
-}
-
-type DataEvent = {
-  label: string,
-  onClick?: (id: string)=> void
-}
-
-const CHAR_WIDTH = 10; // px per character (tweak)
-const MIN_COL_WIDTH = 100;
-const MAX_COL_WIDTH = 400;
 
 function getColumnWidthFromData<T>(
   data: T[],
@@ -82,7 +57,15 @@ export default function DataTable(props: TableProp) {
 
   const [rowSelection, setRowSelection] = useState({})
 
-  const [columnsSelection, setColumnsSelection] = useState(false)
+  const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue>, tableType: string): CSSProperties => {
+    return {
+      position: column.getIsPinned() ? 'sticky' : 'relative',
+      left: column.getIsPinned() === 'left' ? column.getStart('left') : undefined,
+      zIndex: column.getIsPinned() ? 3 : 0,
+      width: '100%',
+      background: tableType === 'row' && column.getIsPinned() ? 'white' : ''
+    }
+  }
 
   function IndeterminateCheckbox({
     indeterminate,
@@ -143,16 +126,37 @@ export default function DataTable(props: TableProp) {
           minSize: 100,
           maxSize: 400
         }
-      ))],
+      )),
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: () => (
+          <div className="text-center">
+            <DropdownMenuDemo items={actionItemsRow}>
+              <Button variant="outline" size="icon">
+                <EllipsisVertical />
+              </Button>
+            </DropdownMenuDemo>
+          </div>
+        ),
+        size: 64,
+        enablePinning: true,
+      }
+    ],
     [fields, data]
   )
 
   let table = useReactTable({
     data, columns,
-    state: { sorting, pagination, globalFilter, rowSelection, columnVisibility },
+    state: {
+      sorting, pagination,
+      globalFilter, rowSelection,
+      columnVisibility, 
+    },
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
     enableRowSelection: true,
+    enableColumnPinning: true,
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
@@ -161,7 +165,7 @@ export default function DataTable(props: TableProp) {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,18 +182,14 @@ export default function DataTable(props: TableProp) {
     table.getColumn('select')?.toggleVisibility()
   }
 
-  // const handleSelectField = () => {
-  //   setColumnsSelection(!columnsSelection)
-  // }
-
   const handleResetFilters = () => {
     table.resetRowSelection()
     table.resetColumnVisibility()
     setPagination({ pageIndex: 0, pageSize: 10 })
   }
-  
-  const handleCopyDataID = (id: string) =>{
-    console.log(id)
+
+  const handleCopyDataID = async (id: string) => {
+    await navigator.clipboard.writeText(id)
   }
 
   const handleDownloadExcel = () => {
@@ -201,30 +201,31 @@ export default function DataTable(props: TableProp) {
   }
 
   const subItems: MenuSubItem[] = table
-  .getAllLeafColumns() 
-  .filter(column => column.id !== "select")
-  .map(column => ({
-    id: column.id,
-    label:
-      typeof column.columnDef.header === "string"
-        ? column.columnDef.header
-        : column.id,
-    checked: column.getIsVisible(),
-    toggleVisibility: (value?: boolean) =>{
-      column.toggleVisibility(value)
-    }
-  }))
+    .getAllLeafColumns()
+    .filter(column => column.id !== "select")
+    .map(column => ({
+      id: column.id,
+      label:
+        typeof column.columnDef.header === "string"
+          ? column.columnDef.header
+          : column.id,
+      checked: column.getIsVisible(),
+      toggleVisibility: (value?: boolean) => {
+        column.toggleVisibility(value)
+      }
+    }))
 
-  const actionItems: MenuItem[] = [
-    { label: 'Select Data', onClick: handleSelectData },
-    { label: 'Select Field', subItems },
-    { label: 'Download Excel', onClick: handleDownloadExcel }
+  const actionItemsHeader: MenuItem[] = [
+    { label: 'Select Data', onClick: handleSelectData, onlySM: false, icon: ListChecks },
+    { label: 'Views', subItems, onlySM: false, icon: SlidersVertical },
+    { label: 'Create Data', onlySM: true },
+    { label: 'Download Excel', onClick: handleDownloadExcel, onlySM: false, icon: Download }
   ]
 
-  const dataEvents: DataEvent[] = [
-    { label: 'Copy ID', onClick: handleCopyDataID},
-    { label: 'Edit Data', onClick: (id: string)=>{}},
-    { label: 'Delete Data', onClick: (id: string)=>{}},
+  const actionItemsRow: MenuItem[] = [
+    { label: 'Copy ID', onClick: ()=> handleCopyDataID},
+    { label: 'Edit Data', onClick: () => { } },
+    { label: 'Delete Data', onClick: () => { } },
   ]
 
   useEffect(() => {
@@ -238,48 +239,37 @@ export default function DataTable(props: TableProp) {
   }, [url, pagination.pageIndex, pagination.pageSize])
 
   return (
-    <div className="table-parent h-[85svh] w-[85svw] mx-auto bg-white shadow-lg flex flex-col">
-      <div className="table-header relative flex justify-between items-center h-16 shrink-0 px-5">
-        {columnsSelection && <div className="h-65 w-40 shadow-lg bg-slate-400 z-100 absolute right-5 top-15 rounded-md p-2.5 space-y-2.5 scroll-hide overflow-y-scroll text-white">
-          {table.getAllLeafColumns().filter(column => column.id !== 'select').map((column => (
-            <div className="px-1" key={column.id}>
-              <label>
-                <input
-                  {...{
-                    type: 'checkbox',
-                    checked: column.getIsVisible(),
-                    onChange: column.getToggleVisibilityHandler()
-                  }}
-                />{' '}
-                {column.id.charAt(0).toUpperCase() + column.id.slice(1)}
-              </label>
-            </div>
-          )))}
-        </div>}
-        <div className="flex items-center space-x-2.5">
-          <label>Search</label>
-          <Input type="text" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 bg-slate-400! focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
+    <div className="table-parent h-[92.5svh] lg:h-[85svh] w-[90svw] lg:w-[85svw] mx-auto bg-white shadow-lg flex flex-col">
+      <div className="table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5">
+        <div className="lg:w-1/3 flex items-center space-x-2.5">
+          <Input type="text" placeholder="Search" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-1/2 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
           <p>Page No: {pagination.pageIndex + 1}</p>
         </div>
         <div className="flex items-center space-x-2.5">
-          <Button variant={'outline'} className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white">Create Data</Button>
-          <DropdownMenuDemo items={actionItems}>
+          <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+            Create Data
+            <PlusCircle />
+          </Button>
+          <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+            <FunnelIcon />
+          </Button>
+          <DropdownMenuDemo items={actionItemsHeader}>
             <Button variant={'outline'} className="h-9 flex items-center bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none">
               <EllipsisVertical />
             </Button>
           </DropdownMenuDemo>
         </div>
       </div>
-      <div className="table-wrapper flex-1 flex overflow-auto border-gray-200
-  scrollbar-none -ms-overflow-style-none scroll-hide">
+      <div className="table-wrapper flex-1 flex overflow-auto 
+  scrollbar-none -ms-overflow-style-none scroll-hide relative">
         <Table className="border-collapse h-full w-full">
-          <TableHeader className="sticky top-0 bg-white z-10 h-14">
+          <TableHeader className="bg-white z-10 h-14">
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
                   <TableHead
                     key={header.id}
-                    style={{ minWidth: header.getSize() }}
+                    style={{ minWidth: header.getSize(), ...getPinnedColumnStyle(header.column, 'header') }}
                     className="px-2 pb-2 border bg-slate-100 text-left"
                   >
                     <div className="flex justify-between items-center space-x-5">
@@ -291,25 +281,40 @@ export default function DataTable(props: TableProp) {
                             header.getContext()
                           )}
                       </span>
-                      {header.column.id !== 'select' &&
-                        <span>
-                          {header.column.getIsSorted() === 'asc' && (
-                            <ChevronDown cursor={'pointer'} className="h-5"
-                              onClick={header.column.getToggleSortingHandler()}
+                      <div className="flex">
+                        {header.column.id !== 'select' && header.column.id !== 'actions' &&
+                          <span>
+                            {header.column.getIsSorted() === 'asc' && (
+                              <ChevronDown cursor={'pointer'} className="h-5"
+                                onClick={header.column.getToggleSortingHandler()}
+                              />
+                            )}
+                            {header.column.getIsSorted() === 'desc' && (
+                              <ChevronUp cursor={'pointer'} className="h-5"
+                                onClick={header.column.getToggleSortingHandler()}
+                              />
+                            )}
+                            {header.column.getIsSorted() === false && (
+                              <ChevronsUpDown cursor={'pointer'} className="h-5"
+                                onClick={header.column.getToggleSortingHandler()}
+                              />
+                            )}
+                          </span>
+                        }
+                        {header.column.id !== 'select' && header.column.id !== 'actions' && <span>
+                          {header.column.getIsPinned() ? (
+                            <PinOff
+                              className="h-5 cursor-pointer"
+                              onClick={() => header.column.pin(false)}
+                            />
+                          ) : (
+                            <PinIcon
+                              className="h-5 cursor-pointer"
+                              onClick={() => header.column.pin('left')}
                             />
                           )}
-                          {header.column.getIsSorted() === 'desc' && (
-                            <ChevronUp cursor={'pointer'} className="h-5"
-                              onClick={header.column.getToggleSortingHandler()}
-                            />
-                          )}
-                          {header.column.getIsSorted() === false && (
-                            <ChevronsUpDown cursor={'pointer'} className="h-5"
-                              onClick={header.column.getToggleSortingHandler()}
-                            />
-                          )}
-                        </span>
-                      }
+                        </span>}
+                      </div>
                     </div>
                   </TableHead>
                 ))}
@@ -320,40 +325,46 @@ export default function DataTable(props: TableProp) {
             {table.getRowModel().rows.map(row => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map(cell => (
-                  <ContextMenuComp dataEvents={dataEvents} cell={cell}>
                   <TableCell
                     key={cell.id}
-                    className="border px-2 py-1"
+                    style={{ ...getPinnedColumnStyle(cell.column, 'row') }}
+                    className={`px-2 py-1`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
-                  </ContextMenuComp>
                 ))}
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        {table.getSelectedRowModel().rows.length > 0 && <div className="fixed left-[50%] bottom-30 -translate-x-[50%] z-30 flex bg-white p-2 shadow-lg rounded-lg space-x-2">
+          <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleResetFilters} variant="outline">Clear Selection</Button>
+          <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" variant="outline">
+            <Download />
+          </Button>
+          <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" variant="outline">
+            <Trash />
+          </Button>
+        </div>}
       </div>
-      <div className="table-footer relative flex items-center justify-evenly h-16 shrink-0 px-5">
+      <div className="table-footer relative flex items-center justify-around lg:justify-evenly h-20 lg:h-16 shrink-0 px-5">
         <div className="btn-group flex items-center space-x-2.5">
-          <Button variant={'outline'} className="h-9 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
+          <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
             <ChevronsLeft />
           </Button>
-          <Button variant={'outline'} className="h-9 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+          <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
             <ChevronLeft />
           </Button>
-          <Button variant={'outline'} className="h-9 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+          <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
             <ChevronRight />
           </Button>
-          <Button variant={'outline'} className="h-9 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}>
+          <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}>
             <ChevronsRight />
           </Button>
         </div>
-        <div className="per-page flex items-center space-x-2.5">
+        <div className="per-page flex flex-col lg:flex-row items-center space-y-1.5 space-x-0 lg:space-y-0 lg:space-x-2.5">
           <span>Per Page: </span>
-          <Input value={pagination.pageSize} onChange={handleChange} className="scroll-hide h-9 w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
-          {/* <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleDownloadExcel} variant="ghost">Download Excel</Button> */}
-          <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={handleResetFilters} variant="outline">Reset</Button>
+          <Input value={pagination.pageSize} onChange={handleChange} className="scroll-hide h-7 lg:h-9 w-15 lg:w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from 'react'
 
@@ -20,9 +21,10 @@ type MenuSubItem = {
 
 type MenuItem = {
   label: string
-  shortcut?: string
   onClick?: () => void,
-  subItems?: MenuSubItem[]
+  subItems?: MenuSubItem[],
+  onlySM?: boolean
+  icon?: LucideIcon
 }
 
 export default function DropdownMenuDemo({ children, items }: { children: ReactNode, items: MenuItem[] }) {
@@ -66,11 +68,12 @@ export default function DropdownMenuDemo({ children, items }: { children: ReactN
       <DropdownMenuTrigger asChild>
         {children}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-40 mr-7.5" align="start">
+      <DropdownMenuContent className="w-40 mr-7.5 scroll-hide max-h-84" align="start">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuGroup>
-          {items.map((item, index) => (
-            <div key={index}>
+          {items.map((item, index) => {
+            let { icon:Icon } = item
+            return <div key={index}>
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault()
@@ -79,14 +82,14 @@ export default function DropdownMenuDemo({ children, items }: { children: ReactN
                   )
                 }}
                 onClick={item.onClick}
-                className="flex justify-between">
+                className={`flex justify-between ${item.onlySM ? 'lg:hidden' : 'lg:flex'}`}>
                 {item.label}
-                <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>
+                <DropdownMenuShortcut>{Icon && <Icon/>}</DropdownMenuShortcut>
               </DropdownMenuItem>
               {item.subItems &&
                 <>
                   {expandedIndex === index && (
-                    <div className="ml-3 mt-1 space-y-1">
+                    <div className="ml-4 mt-1 space-y-1">
                       {item.subItems.map((subItem) => {
                         const key = subItem.id
 
@@ -112,7 +115,7 @@ export default function DropdownMenuDemo({ children, items }: { children: ReactN
                 </>
               }
             </div>
-          ))}
+})}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
