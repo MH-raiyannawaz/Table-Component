@@ -1,25 +1,27 @@
 import type { LucideIcon } from "lucide-react";
 
-type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
-
-type TableProp = {
-  url: string,
-  setUrl: StateSetter<string>
+type MenuSubItem = {
+  id?: string
+  label?: string,
+  checked?: boolean,
+  toggleVisibility?: (value?: boolean) => void
 }
 
-type MenuSubItem = {
-  id: string
-  label: string
-  checked: boolean
-  toggleVisibility: (value?: boolean) => void
+type Range = {
+  min: number | Date, 
+  max: number | Date
 }
 
 type MenuItem = {
-  label: string
+  id: string,
+  label: string,
+  type: string,
   onClick?: () => void,
-  subItems?: MenuSubItem[]
+  subItems?: MenuSubItem[] | null,
+  range?: Range | null,
+  filterType?: string,
   onlySM?: boolean
   icon?: LucideIcon
 }
 
-export type { StateSetter, TableProp, MenuItem, MenuSubItem }
+export type { MenuItem, MenuSubItem, Range }

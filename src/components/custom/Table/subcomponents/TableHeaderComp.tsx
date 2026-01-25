@@ -1,34 +1,35 @@
-export default function TableHeader() {
+import { Button } from "@/components/ui/button";
+import Dropdown from "../../Dropdown/DropdownComponent";
+import { EllipsisVertical, FunnelIcon, PlusCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import useAppContext from "@/context/useAppContext";
+import type { MenuItem } from "../types";
+
+export default function TableHeaderComp({filterItems, actionItemsHeader}: {filterItems: MenuItem[], actionItemsHeader: MenuItem[]}) {
+
+    const { state:  {globalFilter, pagination}, actions: {setGlobalFilter} } = useAppContext()
+
     return (
-        <div className="table-header relative flex justify-between items-center h-[10%] px-5">
-            {columnsSelection && <div className="h-65 w-40 shadow-lg bg-slate-400 z-100 absolute right-5 top-15 rounded-md p-2.5 space-y-2.5 scroll-hide overflow-y-scroll text-white">
-                {table.getAllLeafColumns().filter(column => column.id !== 'select').map((column => (
-                    <div className="px-1" key={column.id}>
-                        <label>
-                            <input
-                                {...{
-                                    type: 'checkbox',
-                                    checked: column.getIsVisible(),
-                                    onChange: column.getToggleVisibilityHandler()
-                                }}
-                            />{' '}
-                            {column.id.charAt(0).toUpperCase() + column.id.slice(1)}
-                        </label>
-                    </div>
-                )))}
-            </div>}
-            <div className="flex items-center space-x-2.5">
-                <label>Search</label>
-                <input type="text" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-10 bg-slate-300! focus:bg-slate-400! text-white rounded-lg outline-none! p-2.5" />
-                <p className="pr-2.5">Page No: {pagination.pageIndex + 1}</p>
+        <div className="table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5">
+            <div className="lg:w-1/3 flex items-center space-x-2.5">
+                <Dropdown label="Filter" menuItems={filterItems}>
+                    <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                        <FunnelIcon />
+                    </Button>
+                </Dropdown>
+                <Input type="text" placeholder="Search" value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-1/2 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
+                <p>Page No: {pagination.pageIndex + 1}</p>
             </div>
             <div className="flex items-center space-x-2.5">
-                <button className="h-10 flex items-center bg-slate-400! hover:bg-slate-500! text-white outline-none"
-                    onClick={handleSelectData}
-                >Select Data</button>
-                <button className="h-10 flex items-center bg-slate-400! hover:bg-slate-500! text-white outline-none"
-                    onClick={() => setColumnsSelection(!columnsSelection)}
-                >Select Field</button>
+                <Dropdown label="Actions" menuItems={actionItemsHeader}>
+                    <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                        <EllipsisVertical />
+                    </Button>
+                </Dropdown>
+                <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                    Create Data
+                    <PlusCircle />
+                </Button>
             </div>
         </div>
     )

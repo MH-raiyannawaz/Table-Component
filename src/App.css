@@ -18,11 +18,11 @@
   scrollbar-width: none;
 }
 
-table {
+.table-wrapper table {
   border-collapse: collapse;
 }
 
-th, td {
+.table-wrapper th, .table-wrapper td {
   padding: 4px 8px;
   white-space: nowrap;
 }
@@ -49,6 +49,12 @@ th, td {
   background: linear-gradient(to right, rgba(128, 128, 128, 0.2), transparent);
   pointer-events: none;
   z-index: 0;
+}
+
+.calendar-popup{
+  max-height: 300px;
+  max-width: 300px;
+  overflow-y: auto;  
 }
 
 @theme inline {
