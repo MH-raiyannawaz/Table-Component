@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import AppContext from "./AppContext";
 import { type ColumnPinningState, type Row, type SortingState, type Table, type VisibilityState } from "@tanstack/react-table";
-import type { Pagination } from "./types";
+import type { FilterData, Pagination } from "./types";
 import { arrayMove } from "@dnd-kit/sortable";
 import { KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Data } from "@/lib/types";
@@ -16,7 +16,7 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
 
   const [pagination, setPagination] = useState<Pagination>({
     pageIndex: 0,
-    pageSize: 10
+    pageSize: 100
   })
 
   const [sorting, setSorting] = useState<SortingState>([])
@@ -71,19 +71,14 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
   }
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 100,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {}),
+    useSensor(MouseSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor),
   )
+
+  const [ filterData, setFilterData ] = useState<FilterData[]>([
+    // {range: {min: }}
+  ])
 
   return <AppContext.Provider value={{
     state: {
@@ -98,7 +93,8 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
       rowSelection,
       columnOrder,
       columnSizing,
-      sensors
+      sensors,
+      filterData
     },
     actions: {
       setData,
@@ -114,7 +110,8 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
       handleChange,
       handleSelectData,
       handleResetFilters,
-      handleDragEnd
+      handleDragEnd,
+      setFilterData
     },
   }}>
     {children}

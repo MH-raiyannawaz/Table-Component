@@ -30,6 +30,9 @@ export default function TableHeaderComp({filterItems, actionItemsHeader}: {filte
                     Create Data
                     <PlusCircle />
                 </Button>
+                <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                    Apply filter
+                </Button>
             </div>
         </div>
     )

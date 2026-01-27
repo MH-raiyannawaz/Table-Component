@@ -1,6 +1,6 @@
 import type { Column } from "@tanstack/react-table"
 import type { CSSProperties } from "react"
-import type { MenuSubItem, Range } from "./types"
+import type { FilterType, MenuSubItem, Range } from "./types"
 
 export const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue>, tableType: string): CSSProperties => {
     const isPinned = column.getIsPinned()
@@ -14,27 +14,39 @@ export const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue
     }
   }
 
-  export  const getFilterDataType = (filterSubItems: MenuSubItem[]): {
-    filterType: string,
+export const getFilterType = (dataType: any): FilterType =>{
+  let isDateType = typeof dataType === 'string' && /\d{2,4}[-/]\d{1,2}[-/]\d{1,2}/.test(dataType)
+  
+  if(isDateType){
+    return 'date'
+  }
+  
+  let isRange = dataType !== '' && !isNaN(Number(dataType))
+  if(isRange){
+    return 'range'
+  }
+
+  return 'select'
+}
+
+  export  const getFilterData = (filterSubItems: MenuSubItem[]): {
+    filterType: FilterType,
     subItems?: MenuSubItem[] | null,
     range?: Range | null
   } => {
 
     // Categorical 
-    let categoricalMappedData = [...new Map(filterSubItems.map(filterSubItem => [filterSubItem.label, filterSubItem])).values()]
-    let isCategorical = categoricalMappedData.length / filterSubItems.length < 0.25
+    // let categoricalMappedData = [...new Map(filterSubItems.map(filterSubItem => [filterSubItem.label, filterSubItem])).values()]
+    // let isCategorical = categoricalMappedData.length / filterSubItems.length < 0.25
 
-    if (isCategorical) {
-      return { filterType: 'categorical', subItems: categoricalMappedData, range: null }
-    }
+    // if (isCategorical) {
+    //   return { filterType: 'categorical', subItems: categoricalMappedData, range: null }
+    // }
     // // Categorical 
 
-    let dataType = filterSubItems.map(filterSubItem => filterSubItem.label)[0];
+    let dataType = getFilterType(filterSubItems.map(filterSubItem => filterSubItem?.label)[0]);
 
-    // Date Type 
-    let isDateType = typeof dataType === 'string' && /\d{2,4}[-/]\d{1,2}[-/]\d{1,2}/.test(dataType)
-
-    if (isDateType) {
+    if (dataType === 'date') {
 
       if (!Array.isArray(filterSubItems) || filterSubItems.length === 0) {
         return { filterType: "date", subItems: null, range: null }
@@ -53,25 +65,26 @@ export const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue
       const min = new Date(Math.min(...timestamps))
       const max = new Date(Math.max(...timestamps))
 
-      return { filterType: 'date', subItems: null, range: {min, max} }
+      return { filterType: 'date', subItems: null, range: { min, max} }
     }
     // Date Type 
 
-    let isRange = dataType !== '' && !isNaN(Number(dataType))
-
     // Range 
-    if (isRange) {
+    if (dataType === 'range') {
       let lowestRange = Math.min(...filterSubItems.map(filterItem => Number(filterItem.label)))
       let highestRange = Math.max(...filterSubItems.map(filterItem => Number(filterItem.label)))
 
-      let range = { min: Number(lowestRange), max: Number(highestRange) }
+      let range = {currMin: Number(lowestRange), currMax: Number(highestRange),
+        min: Number(lowestRange), max: Number(highestRange) }
       return { filterType: 'range', subItems: null, range }
     }
     // Range 
 
-    return { filterType: 'select', subItems: filterSubItems, range: null }
+    let filteredSubItems = [...new Map(filterSubItems.map(filterSubItem => [filterSubItem.label, filterSubItem])).values()]
+    
+    return { filterType: 'select', subItems: filteredSubItems, range: null }
 
     // let isDateType = dataType !== '' && !isNaN(Date.parse(dataType))
 
-    // return filterDataType
+    // return filterType
   }

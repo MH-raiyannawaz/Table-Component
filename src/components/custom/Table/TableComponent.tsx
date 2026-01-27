@@ -1,7 +1,7 @@
 import { getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ChangeEvent } from "react";
 import type { ColumnDef } from '@tanstack/react-table'
-import { getData, handleCopyDataID } from "../../../lib/utils";
+import { handleDownloadExcel, getData, handleCopyDataID } from "../../../lib/utils";
 import type { MenuItem, MenuSubItem } from './types'
 import { ChevronDown, Download, EllipsisVertical, ListChecks, SlidersVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,19 @@ import TableHeaderComp from "./subcomponents/TableHeaderComp";
 import useAppContext from "@/context/useAppContext";
 import IndeterminateCheckbox from "./mincomponents/IndeterminateCheckbox";
 import TableBodyComp from "./subcomponents/TableBodyComp";
-import { getFilterDataType } from "./utils";
+import { getFilterData, getFilterType } from "./utils";
+import type { FilterData } from "@/context/types";
 
 const MIN_COL_WIDTH = 200;
 
 export default function TableComponent(props: TableProp) {
 
-  const { 
-    state: {data, globalFilter, total, pagination, sorting, rowSelection, 
-      columnVisibility, columnPinning, columnOrder, columnSizing },
+  const {
+    state: { data, globalFilter, total, pagination, sorting, rowSelection,
+      columnVisibility, columnPinning, columnOrder, columnSizing, filterData },
     actions: { setData, setGlobalFilter, setTotal, setPagination, setSorting,
-    setRowSelection, setColumnVisibility, setColumnPinning, setColumnOrder, 
-    setColumnSizing } }  = useAppContext()
+      setRowSelection, setColumnVisibility, setColumnPinning, setColumnOrder,
+      setColumnSizing, handleSelectData, setFilterData } } = useAppContext()
 
   const { url } = props
 
@@ -135,16 +136,87 @@ export default function TableComponent(props: TableProp) {
           ? column.columnDef.header
           : column.id,
       checked: column.getIsVisible(),
-      toggleVisibility: (value?: boolean) => {
+      onChange: (value?: boolean) => {
         column.toggleVisibility(value)
       }
     }))
 
+  const handleFilterState = (id: string, label: string) => {
+    const existing = filterData.find(f => f.id === id)
+
+    if (existing) {
+      const labelExists = existing.labels?.includes(label)
+
+      const updatedLabels = labelExists
+        ? existing.labels?.filter(l => l !== label)
+        : [...(existing.labels ?? []), label]
+
+      const updated = updatedLabels?.length === 0
+        ? filterData.filter(f => f.id !== id)
+        : filterData.map(f =>
+          f.id === id
+            ? { ...f, labels: updatedLabels }
+            : f
+        )
+
+      setFilterData(updated)
+    } else {
+      const newField = {
+        id,
+        labels: [label],
+        order: filterData.length + 1,
+        filterType: getFilterType(label)
+      }
+
+      setFilterData([...filterData, newField])
+    }
+  }
+
+  const handleFilterRange = (e, id: string) => {
+    let [currMin, currMax] = e
+    let fieldExist = filterData.find(data => data.id === id)
+
+    if (fieldExist) {
+      let mappedRangeData = filterData.map(data => {
+        if (data.id === id) {
+          return {
+            ...data,
+            filterType: "range",
+            range: {
+              ...data.range,  // Keep min/max bounds
+              currMin,
+              currMax
+            }
+          }
+        }
+        return data
+      })
+      setFilterData(mappedRangeData)
+    }
+    else {
+      // Get the default range for this column
+      const defaultRange = filterItems.find(item => item.id === id)?.range
+
+      let mappedRangeData = [...filterData, {
+        id,
+        filterType: "range",
+        range: {
+          min: defaultRange?.min,
+          max: defaultRange?.max,
+          currMin,
+          currMax
+        }
+      }]
+      setFilterData(mappedRangeData)
+    }
+  }
+
+
   const actionItemsHeader: MenuItem[] = [
-    { id: 'select-data', type: 'action', label: 'Select Data', onlySM: false, icon: ListChecks },
+    { id: 'select-data', type: 'action', label: 'Select Data', onClick: () => handleSelectData(table), onlySM: false, icon: ListChecks },
     { id: 'views-data', type: 'filter', label: 'Views', subItems: actionSubItemsHeader, onlySM: false, icon: SlidersVertical },
     { id: 'create-data', type: 'action', label: 'Create Data', onlySM: true },
-    { id: 'download-data', type: 'action', label: 'Download Excel', onlySM: false, icon: Download }
+    { id: 'download-data', type: 'action', label: 'Download Excel', onClick: () => handleDownloadExcel(table, data), onlySM: false, icon: Download }
   ]
 
   const actionItemsRow: MenuItem[] = [
@@ -155,16 +227,35 @@ export default function TableComponent(props: TableProp) {
 
   let filterItems: MenuItem[] = columns.filter(column => column.id !== 'select')
     .map(column => {
-      let filterSubItems: MenuSubItem[] = table.getRowModel().rows.map((row) => ({
-        id: row.id, label: row.getValue(column.id as string)
+      let filterSubItems: MenuSubItem[] = table.getCoreRowModel().rows.map((row) => ({
+        id: row.id, label: row.getValue(column.id as string),
+        checked: filterData.some(d =>
+          d.id === column.id &&
+          d.labels?.includes(row.getValue(column.id as string))
+        ),
+        onChange: () => handleFilterState(column.id as string, String(row.original[column.id as string]))
       }))
+
+
+      // Get stored filter for this column
+      const storedFilter = filterData.find(d => d.id === column.id)
+
+      // Get default range from data
+      const defaultRange = getFilterData(filterSubItems).range
 
       return {
         id: column.id as string, label: column.header as string,
-        icon: ChevronDown, type: 'filter', filterType: getFilterDataType(filterSubItems).filterType,
-        subItems: getFilterDataType(filterSubItems).subItems, range: getFilterDataType(filterSubItems).range
-      }
-    })
+        icon: ChevronDown, type: 'filter', range: {
+          min: defaultRange?.min, 
+          max: defaultRange?.max,
+          currMin: storedFilter?.range?.currMin ?? defaultRange?.min,
+          currMax: storedFilter?.range?.currMax ?? defaultRange?.max,
+        },
+          subItems: getFilterData(filterSubItems.filter(filterSubItem => filterSubItem.label)).subItems,
+          filterType: getFilterType(filterSubItems.find(filterSubItem => filterSubItem.label !== '')?.label),
+          onClick: (e) => handleFilterRange(e, column.id)
+        }
+      })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -183,11 +274,18 @@ export default function TableComponent(props: TableProp) {
     }
   }, [columns])
 
+  useEffect(() => {
+    // filterData.forEach(data => {
+    //   table.getColumn(data.id)?.setFilterValue(data.labels)
+    // })
+    console.log(filterData)
+  }, [filterData])
+
   return (
     <div className="table-parent h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw] mx-auto flex flex-col">
-      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader}/>
-      <TableBodyComp table={table}/>
-      <TableFooterComp table={table}/>
+      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader} />
+      <TableBodyComp table={table} />
+      <TableFooterComp table={table} />
     </div>
   )
 }

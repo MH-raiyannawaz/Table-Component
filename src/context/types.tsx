@@ -1,3 +1,4 @@
+import type { FilterType, Range } from "@/components/custom/Table/types"
 import type { Data, StateSetter } from "@/lib/types"
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core"
 import type { SortingState, VisibilityState, ColumnPinningState, Table } from "@tanstack/react-table"
@@ -9,6 +10,13 @@ export type Pagination = {
 
 export type RowSelection = Record<string, boolean>
 export type ColumnSizing = Record<string, number>
+
+export type FilterData = {
+  id: string,
+  filterType?: FilterType,
+  labels?: string[],
+  range?: Range
+}
 
 export type AppContextType<T = Data> = {
   state: {
@@ -23,7 +31,8 @@ export type AppContextType<T = Data> = {
     rowSelection: RowSelection
     columnOrder: string[]
     columnSizing: ColumnSizing,
-    sensors: SensorDescriptor<SensorOptions>[]
+    sensors: SensorDescriptor<SensorOptions>[],
+    filterData: FilterData[]
   }
   actions: {
     setData: StateSetter<Data[]>
@@ -39,6 +48,7 @@ export type AppContextType<T = Data> = {
     handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
     handleSelectData: (table: Table<Data>) => void,
     handleResetFilters: (table: Table<Data>) => void,
-    handleDragEnd: (event: DragEndEvent) => void
+    handleDragEnd: (event: DragEndEvent) => void,
+    setFilterData: StateSetter<FilterData[]>
   }
 }

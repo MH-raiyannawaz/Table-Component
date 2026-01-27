@@ -21,7 +21,6 @@ export default function CalendarCustomDays() {
         onSelect={setRange}
         numberOfMonths={1}
         captionLayout="dropdown"
-        className="[&_button]:h-10 [&_button]:w-10 [&_tr]:mt-0 [&_tr]:space-x-2 [&_tr]:space-y-2 [&_button]:text-sm"
         formatters={{
           formatMonthDropdown: (date) => {
             return date.toLocaleString("default", { month: "long" })

@@ -4,13 +4,20 @@ type MenuSubItem = {
   id?: string
   label?: string,
   checked?: boolean,
-  toggleVisibility?: (value?: boolean) => void
+  onChange?: (value?: boolean) => void
 }
+
 
 type Range = {
   min: number | Date, 
-  max: number | Date
+  max: number | Date,
+  currMin: number, 
+  currMax: number,
+  onCommit: (value: boolean) => void
 }
+
+type FilterType = 'date' | 'range' | 'select'
+// categorical
 
 type MenuItem = {
   id: string,
@@ -19,9 +26,9 @@ type MenuItem = {
   onClick?: () => void,
   subItems?: MenuSubItem[] | null,
   range?: Range | null,
-  filterType?: string,
+  filterType?: FilterType,
   onlySM?: boolean
   icon?: LucideIcon
 }
 
-export type { MenuItem, MenuSubItem, Range }
+export type { MenuItem, MenuSubItem, Range, FilterType }

@@ -1,6 +1,8 @@
 import * as XLSX from "xlsx";
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { Table } from "@tanstack/react-table";
+import type { Data } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
@@ -25,7 +27,7 @@ function getColumnWidthFromData<T>(
 }
 
 export const handleCopyDataID = async (id: string) => {
-     await navigator.clipboard.writeText(id)
+    await navigator.clipboard.writeText(id)
 }
 
 
@@ -41,6 +43,17 @@ export function exportToExcel<T extends Record<string, any>>(data: T[], filename
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
 
     XLSX.writeFile(workbook, filename);
+}
+
+export const handleDownloadExcel = (table: Table<Data>, data: Data[]) => {
+    const selectedRows = table.getSelectedRowModel().rows.map(row => row.original);
+
+    if (selectedRows.length > 0) {
+        exportToExcel(selectedRows)
+    }
+    else {
+        exportToExcel(data)
+    }
 }
 
 export async function getData<T = any>(url: string): Promise<{ data: T[]; total: number }> {

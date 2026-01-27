@@ -51,12 +51,6 @@
   z-index: 0;
 }
 
-.calendar-popup{
-  max-height: 300px;
-  max-width: 300px;
-  overflow-y: auto;  
-}
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

@@ -35,7 +35,7 @@ import { flexRender, type Cell } from "@tanstack/react-table"
       >
         {flexRender(cell.column.columnDef.cell, cell.getContext())}
         {isLastLeftPinned && (
-          <div className="absolute top-0 -right-6px] h-full w-6 pointer-events-none shadow-pinned" />
+          <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned" />
         )}
       </TableCell>
     )

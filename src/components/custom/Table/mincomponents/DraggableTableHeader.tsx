@@ -101,7 +101,7 @@ const DraggableTableHeader = ({
           </div>
         </div>
         {isLastLeftPinned && (
-          <div className="absolute top-0 -right-6px] h-full w-6 pointer-events-none shadow-pinned" />
+          <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned" />
         )}
       </TableHead>
     )
