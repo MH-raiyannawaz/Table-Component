@@ -1,0 +1,103 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import type { FilterData } from "@/context/types";
+import useAppContext from "@/context/useAppContext";
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+
+import {
+    arrayMove,
+    horizontalListSortingStrategy,
+    SortableContext,
+    useSortable,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
+import { GripHorizontal } from "lucide-react";
+
+function SortableItem({ id }: { id: string }) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+        useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="bg-white rounded cursor-grab shadow flex items-center justify-between px-2 py-1"
+        >
+            <p className="text-sm">{id}</p>
+            <Button variant={'outline'}
+                {...attributes}
+                {...listeners}
+                className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                <GripHorizontal cursor={'grab'} />
+            </Button>
+        </div>
+    );
+}
+
+export default function DragAndDropComponent({ label }: { label: string }) {
+
+    const { state: { filterData }, actions: { setFilterData } } = useAppContext()
+
+    const sensors = useSensors(useSensor(PointerSensor));
+
+    function handleDragEnd(event: any) {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        if (active.id !== over.id) {
+            setFilterData((filterData) => {
+
+                const oldIdx = filterData.findIndex((item) => item.id === active.id);
+                const newIdx = filterData.findIndex((item) => item.id === over.id);
+
+                if (oldIdx === -1 || newIdx === -1) return filterData;
+
+                const moved = arrayMove(filterData, oldIdx, newIdx);
+
+                return moved.map((item, index) => ({
+                    ...item,
+                    order: index + 1
+                }));
+            });
+        }
+    }
+
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis]}
+        >
+            <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
+            <div className="bg-white p-1.5 w-72 space-y-1.5">
+                {filterData.length > 0 ? <SortableContext
+                    items={filterData.map(item => item.id)}
+                    strategy={horizontalListSortingStrategy}
+
+                >
+                    {filterData.map((data) => (
+                        <SortableItem key={data.id} id={data.id} />
+                    ))}
+                </SortableContext> : <p className="text-sm">No filters applied</p>}
+            </div>
+        </DndContext>
+    );
+}

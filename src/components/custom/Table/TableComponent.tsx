@@ -115,7 +115,7 @@ export default function TableComponent(props: TableProp) {
         cell: () => (
           <div className="text-center">
             <Dropdown label="Actions" menuItems={actionItemsRow}>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" className="cursor-pointer" size="icon">
                 <EllipsisVertical />
               </Button>
             </Dropdown>
@@ -310,8 +310,6 @@ export default function TableComponent(props: TableProp) {
       }
     })
 
-  const filterListItems: FilterData[] = filterData
-
   useEffect(() => {
     const fetchData = async () => {
       const skip = pagination.pageIndex * pagination.pageSize;
@@ -331,7 +329,10 @@ export default function TableComponent(props: TableProp) {
 
   useEffect(() => {
     if(filterData.length > 0){
-      filterData.forEach(data => {
+
+      const sorted = [...filterData].sort((a,b) => a.order - b.order);
+
+      sorted.forEach(data => {
         table.getColumn(data.id)?.setFilterValue(prev => {
           const prevLabels = prev?.labels ?? []
           const prevDateRange = prev?.dateRange ?? null
@@ -370,7 +371,7 @@ export default function TableComponent(props: TableProp) {
 
   return (
     <div className="table-parent h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw] mx-auto flex flex-col">
-      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader} filterListItems={filterListItems}/>
+      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader}/>
       <TableBodyComp table={table} />
       <TableFooterComp table={table} />
     </div>

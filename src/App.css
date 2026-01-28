@@ -22,12 +22,13 @@
   border-collapse: collapse;
 }
 
-.table-wrapper th, .table-wrapper td {
+.table-wrapper th,
+.table-wrapper td {
   padding: 4px 8px;
   white-space: nowrap;
 }
 
-.pinned-column::before{
+.pinned-column::before {
   position: absolute;
   content: '';
   z-index: -1;
@@ -35,11 +36,11 @@
   width: 100%;
 }
 
-.shadow-pinned {
+.shadow-pinned-left {
   position: absolute;
 }
 
-.shadow-pinned::after {
+.shadow-pinned-left::after {
   content: "";
   position: absolute;
   top: 0;
@@ -165,6 +166,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

@@ -38,7 +38,7 @@ export default function SelectFilter({ menuItems, menuItem }: { menuItems: MenuI
                         {...{
                             size: 40,
                             checked: subItem.checked,
-                            onChange: subItem.onChange
+                            onChange: subItem.onChange,
                         }}
                     />
                 </DropdownMenuItem>

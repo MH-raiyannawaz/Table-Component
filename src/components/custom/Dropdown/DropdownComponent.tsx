@@ -15,10 +15,11 @@ import type { MenuItem } from '../Table/types'
 import RangeFilter from "./Filters/RangeFilter"
 import CalenderFilter from "./Filters/CalenderFilter"
 import SelectFilter from "./Filters/SelectFilter"
+import DragAndDropComponent from "../DragAndDrop/DragAndDropComponent"
 
-export default function DropdownComponent({ children, label, menuItems }:
-  { children: ReactNode, label: string, menuItems?: MenuItem[] }) {
-  return (
+export default function DropdownComponent({ children, label, isDraggableComponent, menuItems }:
+  { children: ReactNode, label: string, isDraggableComponent: Boolean,  menuItems?: MenuItem[] }) {
+    return (
     <DropdownMenu>
       {/* Button */}
       <DropdownMenuTrigger asChild>
@@ -27,7 +28,11 @@ export default function DropdownComponent({ children, label, menuItems }:
       {/* Button */}
 
       <DropdownMenuContent className="relative left-16">
-          <DropdownMenuGroup className="max-h-74 min-w-52">
+          { isDraggableComponent ?
+          <DropdownMenuGroup>
+            <DragAndDropComponent label={label}/>
+          </DropdownMenuGroup>
+          : <DropdownMenuGroup className="max-h-74 min-w-52">
             {/* Dropdown Header  */}
             <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
             {/* Dropdown Header  */}
@@ -63,7 +68,7 @@ export default function DropdownComponent({ children, label, menuItems }:
                 // Actions
               })
             }
-          </DropdownMenuGroup>
+          </DropdownMenuGroup>}
       </DropdownMenuContent>
     </DropdownMenu>
   )

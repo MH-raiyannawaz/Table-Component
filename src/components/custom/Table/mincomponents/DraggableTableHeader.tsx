@@ -22,6 +22,11 @@ const DraggableTableHeader = ({
       pinnedLeft.length > 0 &&
       pinnedLeft[pinnedLeft.length - 1] === header.column.id
 
+    const pinnedRight = table.getState().columnPinning.right || []
+    const isLastRightPinned =
+      pinnedRight.length > 0 &&
+      pinnedRight[pinnedRight.length - 1] === header.column.id
+
     const pinnedStyle = getPinnedColumnStyle(header.column, 'header')
 
     const style: CSSProperties = {
@@ -101,7 +106,10 @@ const DraggableTableHeader = ({
           </div>
         </div>
         {isLastLeftPinned && (
-          <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned" />
+          <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned-left" />
+        )}
+        {isLastRightPinned && (
+          <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned-right" />
         )}
       </TableHead>
     )
