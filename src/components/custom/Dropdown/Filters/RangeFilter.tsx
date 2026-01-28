@@ -3,7 +3,6 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { useEffect, useState } from 'react'
 import type { MenuItem } from '../../../../components/custom/Table/types'
-import { Button } from '@/components/ui/button'
 
 export default function RangeFilter({ menuItem }: { menuItem: MenuItem }) {
 
@@ -28,19 +27,15 @@ export default function RangeFilter({ menuItem }: { menuItem: MenuItem }) {
         </div>
         <Slider
           value={range}
-          onValueChange={(e) => {
-            setRange(e)
-          }}
-          onValueCommit={()=>menuItem.onClick(range)}
+          onValueChange={setRange}
+          onValueCommit={()=>menuItem.onCommit(range)}
           min={min}
           max={max}
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
           step={1}
           className="mx-auto w-11/12"
         />
       </div>
-      <Button onClick={()=>menuItem.onClick(range)}>Done</Button>
+      {/* <Button onClick={()=>menuItem.onClick(range)}>Done</Button> */}
     </DropdownMenuSubContent>
   )
 }

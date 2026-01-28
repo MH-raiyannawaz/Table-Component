@@ -37,6 +37,10 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
   const [columnOrder, setColumnOrder] = useState<string[]>([])
 
   const [columnSizing, setColumnSizing] = useState({})
+  
+  const [ filterData, setFilterData ] = useState<FilterData[]>([
+    // {range: {min: }}
+  ])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isNaN(parseInt(e.target.value)) && parseInt(e.target.value) >= 0) {
@@ -56,6 +60,7 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
     table.resetRowSelection()
     table.resetColumnVisibility()
     setPagination({ pageIndex: 0, pageSize: 10 })
+    setFilterData([])
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -75,10 +80,6 @@ const AppContextState = ({ children }: { children: ReactNode }) => {
     useSensor(TouchSensor),
     useSensor(KeyboardSensor),
   )
-
-  const [ filterData, setFilterData ] = useState<FilterData[]>([
-    // {range: {min: }}
-  ])
 
   return <AppContext.Provider value={{
     state: {

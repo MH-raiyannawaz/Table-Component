@@ -45,7 +45,7 @@ export default function DropdownComponent({ children, label, menuItems }: { chil
                         <RangeFilter menuItem={menuItem} />
                         // Range 
                         // Calendar 
-                        : menuItem.filterType === 'date' ? <CalenderFilter />
+                        : menuItem.filterType === 'date' ? <CalenderFilter menuItem={menuItem}/>
                           // Calendar 
                           // Select 
                           : <SelectFilter menuItems={menuItems} menuItem={menuItem} />

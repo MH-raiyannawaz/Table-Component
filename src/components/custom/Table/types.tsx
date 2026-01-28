@@ -9,11 +9,12 @@ type MenuSubItem = {
 
 
 type Range = {
-  min: number | Date, 
-  max: number | Date,
-  currMin: number, 
-  currMax: number,
-  onCommit: (value: boolean) => void
+  min?: number, 
+  max?: number ,
+  currMin?: number, 
+  currMax?: number,
+  from?: Date,
+  to?: Date
 }
 
 type FilterType = 'date' | 'range' | 'select'
@@ -24,6 +25,8 @@ type MenuItem = {
   label: string,
   type: string,
   onClick?: () => void,
+  onCommit?: () => void,
+  onSelect?: () => void,
   subItems?: MenuSubItem[] | null,
   range?: Range | null,
   filterType?: FilterType,

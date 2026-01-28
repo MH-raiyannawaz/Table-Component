@@ -5,11 +5,13 @@ import { Calendar, CalendarDayButton } from "@/components/ui/calendar"
 import { addDays } from "date-fns"
 import { type DateRange } from "react-day-picker"
 import { DropdownMenuSubContent } from "@/components/ui/dropdown-menu"
+import type { MenuItem } from "../../Table/types"
 
-export default function CalendarCustomDays() {
+export default function CalendarCustomDays({menuItem}: {menuItem: MenuItem}) {
+  const today = new Date()
   const [range, setRange] = React.useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), 11, 8),
-    to: addDays(new Date(new Date().getFullYear(), 11, 8), 10),
+    from: menuItem.range?.from || addDays(today, -2),
+    to: menuItem.range?.to || addDays(today, 2),
   })
 
   return (
@@ -18,7 +20,10 @@ export default function CalendarCustomDays() {
         mode="range"
         defaultMonth={range?.from}
         selected={range}
-        onSelect={setRange}
+        onSelect={(e)=>{
+          setRange(e)
+          menuItem.onSelect(e)
+        }}
         numberOfMonths={1}
         captionLayout="dropdown"
         formatters={{

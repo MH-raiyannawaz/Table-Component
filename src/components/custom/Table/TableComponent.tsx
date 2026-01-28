@@ -1,5 +1,5 @@
 import { getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
-import { useEffect, useMemo, type ChangeEvent } from "react";
+import { useEffect, useMemo } from "react";
 import type { ColumnDef } from '@tanstack/react-table'
 import { handleDownloadExcel, getData, handleCopyDataID } from "../../../lib/utils";
 import type { MenuItem, MenuSubItem } from './types'
@@ -13,7 +13,6 @@ import useAppContext from "@/context/useAppContext";
 import IndeterminateCheckbox from "./mincomponents/IndeterminateCheckbox";
 import TableBodyComp from "./subcomponents/TableBodyComp";
 import { getFilterData, getFilterType } from "./utils";
-import type { FilterData } from "@/context/types";
 
 const MIN_COL_WIDTH = 200;
 
@@ -71,6 +70,36 @@ export default function TableComponent(props: TableProp) {
 
           id: field,
           accessorKey: field,
+          filterFn: (row, id, value) => {
+            if (!value) return true
+
+            const cellValue = row.getValue(id)
+            const { labels, dateRange, numberRange } = value
+
+            // labels (string)
+            if (labels?.length) {
+              if (!labels.includes(String(cellValue))) return false
+            }
+
+            // date range
+            if (dateRange) {
+              const { from, to } = dateRange
+              const d = new Date(cellValue)
+              if (from && d < new Date(from)) return false
+              if (to && d > new Date(to)) return false
+            }
+
+            // number range
+            if (numberRange) {
+              const num = Number(cellValue)
+              const { currMin, currMax } = numberRange
+
+              if (currMin != null && num < currMin) return false
+              if (currMax != null && num > currMax) return false
+            }
+
+            return true
+          },
           ceil: field.charAt(0).toUpperCase() + field.slice(1),
           header: field.charAt(0).toUpperCase() + field.slice(1),
           size: columnSizes[field] || MIN_COL_WIDTH,
@@ -141,7 +170,7 @@ export default function TableComponent(props: TableProp) {
       }
     }))
 
-  const handleFilterState = (id: string, label: string) => {
+  const handleFilterSelect = (id: string, label: string) => {
     const existing = filterData.find(f => f.id === id)
 
     if (existing) {
@@ -165,14 +194,14 @@ export default function TableComponent(props: TableProp) {
         id,
         labels: [label],
         order: filterData.length + 1,
-        filterType: getFilterType(label)
+        filterType: 'select'
       }
 
       setFilterData([...filterData, newField])
     }
   }
 
-  const handleFilterRange = (e, id: string) => {
+  const handleFilterRange = (e: Number[], id: string) => {
     let [currMin, currMax] = e
     let fieldExist = filterData.find(data => data.id === id)
 
@@ -183,7 +212,7 @@ export default function TableComponent(props: TableProp) {
             ...data,
             filterType: "range",
             range: {
-              ...data.range,  // Keep min/max bounds
+              ...data.range,
               currMin,
               currMax
             }
@@ -199,6 +228,7 @@ export default function TableComponent(props: TableProp) {
 
       let mappedRangeData = [...filterData, {
         id,
+        order: filterData.length + 1,
         filterType: "range",
         range: {
           min: defaultRange?.min,
@@ -208,6 +238,30 @@ export default function TableComponent(props: TableProp) {
         }
       }]
       setFilterData(mappedRangeData)
+    }
+  }
+
+  const handleFilterDate = (e, id) => {
+    let fieldExist = filterData.find(data => data.id === id)
+
+    let range = {
+      from: new Date(e.from),
+      to: new Date(e.to)
+    }
+
+    if (fieldExist) {
+      let mappedRangeData = filterData.map(data => {
+        if (data.id === id) {
+          return { ...data, range }
+        }
+        else {
+          return data
+        }
+      })
+      setFilterData(mappedRangeData)
+    }
+    else {
+      setFilterData([...filterData, { id, filterType: 'date', range }])
     }
   }
 
@@ -233,29 +287,28 @@ export default function TableComponent(props: TableProp) {
           d.id === column.id &&
           d.labels?.includes(row.getValue(column.id as string))
         ),
-        onChange: () => handleFilterState(column.id as string, String(row.original[column.id as string]))
+        onChange: () => handleFilterSelect(column.id as string, String(row.original[column.id as string]))
       }))
 
-
-      // Get stored filter for this column
       const storedFilter = filterData.find(d => d.id === column.id)
-
-      // Get default range from data
       const defaultRange = getFilterData(filterSubItems).range
 
       return {
         id: column.id as string, label: column.header as string,
         icon: ChevronDown, type: 'filter', range: {
-          min: defaultRange?.min, 
+          min: defaultRange?.min,
           max: defaultRange?.max,
+          from: storedFilter?.range?.from,
+          to: storedFilter?.range?.to,
           currMin: storedFilter?.range?.currMin ?? defaultRange?.min,
           currMax: storedFilter?.range?.currMax ?? defaultRange?.max,
         },
-          subItems: getFilterData(filterSubItems.filter(filterSubItem => filterSubItem.label)).subItems,
-          filterType: getFilterType(filterSubItems.find(filterSubItem => filterSubItem.label !== '')?.label),
-          onClick: (e) => handleFilterRange(e, column.id)
-        }
-      })
+        subItems: getFilterData(filterSubItems.filter(filterSubItem => filterSubItem.label)).subItems,
+        filterType: getFilterType(filterSubItems.find(filterSubItem => filterSubItem.label !== '')?.label),
+        onCommit: (e: Number[]) => handleFilterRange(e, column.id as string),
+        onSelect: (e) => handleFilterDate(e, column.id)
+      }
+    })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -275,10 +328,40 @@ export default function TableComponent(props: TableProp) {
   }, [columns])
 
   useEffect(() => {
-    // filterData.forEach(data => {
-    //   table.getColumn(data.id)?.setFilterValue(data.labels)
-    // })
-    console.log(filterData)
+    filterData.forEach(data => {
+      table.getColumn(data.id)?.setFilterValue(prev => {
+        const prevLabels = prev?.labels ?? []
+        const prevDateRange = prev?.dateRange ?? null
+        const prevNumberRange = prev?.numberRange ?? null
+
+        let next = {
+          labels: prevLabels,
+          dateRange: prevDateRange,
+          numberRange: prevNumberRange
+        }
+
+        // labels filter
+        if (data.labels) {
+          next.labels = data.labels
+        }
+
+        // date filter
+        if (data.filterType === "date" && data.range) {
+          next.dateRange = data.range // { from, to }
+        }
+
+        // number range filter
+        if (data.filterType === "range" && data.range) {
+          const { currMin, currMax } = data.range
+          next.numberRange = {
+            currMin: currMin ?? prevNumberRange?.currMin ?? null,
+            currMax: currMax ?? prevNumberRange?.currMax ?? null
+          }
+        }
+
+        return next
+      })
+    })
   }, [filterData])
 
   return (
