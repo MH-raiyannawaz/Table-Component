@@ -13,6 +13,7 @@ import useAppContext from "@/context/useAppContext";
 import IndeterminateCheckbox from "./mincomponents/IndeterminateCheckbox";
 import TableBodyComp from "./subcomponents/TableBodyComp";
 import { getFilterData, getFilterType } from "./utils";
+import type { FilterData } from "@/context/types";
 
 const MIN_COL_WIDTH = 200;
 
@@ -218,12 +219,11 @@ export default function TableComponent(props: TableProp) {
             }
           }
         }
-        return data
+        else return data
       })
       setFilterData(mappedRangeData)
     }
     else {
-      // Get the default range for this column
       const defaultRange = filterItems.find(item => item.id === id)?.range
 
       let mappedRangeData = [...filterData, {
@@ -241,7 +241,7 @@ export default function TableComponent(props: TableProp) {
     }
   }
 
-  const handleFilterDate = (e, id) => {
+  const handleFilterDate = (e: {from: Date, to: Date}, id: string) => {
     let fieldExist = filterData.find(data => data.id === id)
 
     let range = {
@@ -261,7 +261,7 @@ export default function TableComponent(props: TableProp) {
       setFilterData(mappedRangeData)
     }
     else {
-      setFilterData([...filterData, { id, filterType: 'date', range }])
+      setFilterData([...filterData, { id, order: filterData.length+1, filterType: 'date', range }])
     }
   }
 
@@ -282,7 +282,7 @@ export default function TableComponent(props: TableProp) {
   let filterItems: MenuItem[] = columns.filter(column => column.id !== 'select')
     .map(column => {
       let filterSubItems: MenuSubItem[] = table.getCoreRowModel().rows.map((row) => ({
-        id: row.id, label: row.getValue(column.id as string),
+        id: row.id as string, label: row.getValue(column.id as string),
         checked: filterData.some(d =>
           d.id === column.id &&
           d.labels?.includes(row.getValue(column.id as string))
@@ -306,9 +306,11 @@ export default function TableComponent(props: TableProp) {
         subItems: getFilterData(filterSubItems.filter(filterSubItem => filterSubItem.label)).subItems,
         filterType: getFilterType(filterSubItems.find(filterSubItem => filterSubItem.label !== '')?.label),
         onCommit: (e: Number[]) => handleFilterRange(e, column.id as string),
-        onSelect: (e) => handleFilterDate(e, column.id)
+        onSelect: (e: {from: Date, to: Date}) => handleFilterDate(e, column.id as string),
       }
     })
+
+  const filterListItems: FilterData[] = filterData
 
   useEffect(() => {
     const fetchData = async () => {
@@ -328,45 +330,47 @@ export default function TableComponent(props: TableProp) {
   }, [columns])
 
   useEffect(() => {
-    filterData.forEach(data => {
-      table.getColumn(data.id)?.setFilterValue(prev => {
-        const prevLabels = prev?.labels ?? []
-        const prevDateRange = prev?.dateRange ?? null
-        const prevNumberRange = prev?.numberRange ?? null
-
-        let next = {
-          labels: prevLabels,
-          dateRange: prevDateRange,
-          numberRange: prevNumberRange
-        }
-
-        // labels filter
-        if (data.labels) {
-          next.labels = data.labels
-        }
-
-        // date filter
-        if (data.filterType === "date" && data.range) {
-          next.dateRange = data.range // { from, to }
-        }
-
-        // number range filter
-        if (data.filterType === "range" && data.range) {
-          const { currMin, currMax } = data.range
-          next.numberRange = {
-            currMin: currMin ?? prevNumberRange?.currMin ?? null,
-            currMax: currMax ?? prevNumberRange?.currMax ?? null
+    if(filterData.length > 0){
+      filterData.forEach(data => {
+        table.getColumn(data.id)?.setFilterValue(prev => {
+          const prevLabels = prev?.labels ?? []
+          const prevDateRange = prev?.dateRange ?? null
+          const prevNumberRange = prev?.numberRange ?? null
+  
+          let next = {
+            labels: prevLabels,
+            dateRange: prevDateRange,
+            numberRange: prevNumberRange
           }
-        }
-
-        return next
+  
+          // labels filter
+          if (data.labels) {
+            next.labels = data.labels
+          }
+  
+          // date filter
+          if (data.filterType === "date" && data.range) {
+            next.dateRange = data.range // { from, to }
+          }
+  
+          // number range filter
+          if (data.filterType === "range" && data.range) {
+            const { currMin, currMax } = data.range
+            next.numberRange = {
+              currMin: currMin ?? prevNumberRange?.currMin ?? null,
+              currMax: currMax ?? prevNumberRange?.currMax ?? null
+            }
+          }
+  
+          return next
+        })
       })
-    })
+    }
   }, [filterData])
 
   return (
     <div className="table-parent h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw] mx-auto flex flex-col">
-      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader} />
+      <TableHeaderComp filterItems={filterItems} actionItemsHeader={actionItemsHeader} filterListItems={filterListItems}/>
       <TableBodyComp table={table} />
       <TableFooterComp table={table} />
     </div>

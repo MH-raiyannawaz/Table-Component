@@ -13,6 +13,7 @@ export type ColumnSizing = Record<string, number>
 
 export type FilterData = {
   id: string,
+  order: Number,
   filterType?: FilterType,
   labels?: string[],
   range?: Range

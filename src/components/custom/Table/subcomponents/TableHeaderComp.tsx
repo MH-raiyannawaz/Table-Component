@@ -4,8 +4,12 @@ import { EllipsisVertical, FunnelIcon, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import useAppContext from "@/context/useAppContext";
 import type { MenuItem } from "../types";
+import type { FilterData } from "@/context/types";
 
-export default function TableHeaderComp({filterItems, actionItemsHeader}: {filterItems: MenuItem[], actionItemsHeader: MenuItem[]}) {
+export default function TableHeaderComp({
+    filterItems, actionItemsHeader}: {filterItems: MenuItem[], actionItemsHeader: MenuItem[],
+        filterListItems: FilterData[],
+    }) {
 
     const { state:  {globalFilter, pagination}, actions: {setGlobalFilter} } = useAppContext()
 
