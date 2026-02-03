@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 
 export default function IndeterminateCheckbox({
   indeterminate,
-  onChange,
+  onCheck,
   className = "",
   ...rest
 }: IndeterminateCheckboxProps) {
@@ -20,7 +20,7 @@ export default function IndeterminateCheckbox({
       type="checkbox"
       ref={ref}
       className={className + " cursor-pointer"}
-      onChange={(e) => onChange?.(e.target.checked)}
+      onChange={(e) => onCheck?.(e.target.checked)}
       {...rest}
     />
   )

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import Dropdown from "../../Dropdown/DropdownComponent";
+import Dropdown from "../../Dropdown/Dropdown";
 import { ArrowUpDown, EllipsisVertical, FunnelIcon, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import useAppContext from "@/context/useAppContext";

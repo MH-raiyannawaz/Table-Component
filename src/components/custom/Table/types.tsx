@@ -5,6 +5,7 @@ type MenuSubItem = {
   label?: string,
   checked?: boolean,
   onChange?: (value?: boolean) => void
+  onCheck?: (value?: boolean) => void
 }
 
 type Range = {
@@ -16,7 +17,7 @@ type Range = {
   to?: Date
 }
 
-type FilterType = 'date' | 'range' | 'select'
+type FilterType = 'date' | 'number' | 'string' | 'boolean'
 // categorical
 
 type MenuItem = {

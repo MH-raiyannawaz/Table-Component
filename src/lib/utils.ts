@@ -56,7 +56,7 @@ export const handleDownloadExcel = (table: Table<Data>, data: Data[]) => {
     }
 }
 
-export async function getData<T = any>(url: string): Promise<{ data: T[]; total: number }> {
+export async function getData(url: string) {
     const res = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
@@ -66,8 +66,5 @@ export async function getData<T = any>(url: string): Promise<{ data: T[]; total:
 
     const json = await res.json();
 
-    return {
-        data: json.users ?? [],
-        total: json.total ?? 0
-    };
+    return json
 }

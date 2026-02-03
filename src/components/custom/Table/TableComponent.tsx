@@ -5,7 +5,7 @@ import { handleDownloadExcel, getData, handleCopyDataID } from "../../../lib/uti
 import type { MenuItem, MenuSubItem } from './types'
 import { ChevronDown, Download, EllipsisVertical, ListChecks, SlidersVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Dropdown from "../Dropdown/DropdownComponent";
+import Dropdown from "../Dropdown/Dropdown";
 import type { Data, TableProp } from "@/lib/types";
 import TableFooterComp from "./subcomponents/TableFooterComp";
 import TableHeaderComp from "./subcomponents/TableHeaderComp";
@@ -13,7 +13,6 @@ import useAppContext from "@/context/useAppContext";
 import IndeterminateCheckbox from "./mincomponents/IndeterminateCheckbox";
 import TableBodyComp from "./subcomponents/TableBodyComp";
 import { getFilterData, getFilterType } from "./utils";
-import type { FilterData } from "@/context/types";
 
 const MIN_COL_WIDTH = 200;
 
@@ -114,7 +113,7 @@ export default function TableComponent(props: TableProp) {
         header: 'Actions',
         cell: () => (
           <div className="text-center">
-            <Dropdown label="Actions" menuItems={actionItemsRow}>
+            <Dropdown label="Actions" isDraggableComponent={false} menuItems={actionItemsRow}>
               <Button variant="outline" className="cursor-pointer" size="icon">
                 <EllipsisVertical />
               </Button>
@@ -166,7 +165,7 @@ export default function TableComponent(props: TableProp) {
           ? column.columnDef.header
           : column.id,
       checked: column.getIsVisible(),
-      onChange: (value?: boolean) => {
+      onCheck: (value?: boolean) => {
         column.toggleVisibility(value)
       }
     }))
@@ -195,14 +194,14 @@ export default function TableComponent(props: TableProp) {
         id,
         labels: [label],
         order: filterData.length + 1,
-        filterType: 'select'
+        filterType: 'string'
       }
 
       setFilterData([...filterData, newField])
     }
   }
 
-  const handleFilterRange = (e: Number[], id: string) => {
+  const handleFilterNumber = (e: Number[], id: string) => {
     let [currMin, currMax] = e
     let fieldExist = filterData.find(data => data.id === id)
 
@@ -287,7 +286,7 @@ export default function TableComponent(props: TableProp) {
           d.id === column.id &&
           d.labels?.includes(row.getValue(column.id as string))
         ),
-        onChange: () => handleFilterSelect(column.id as string, String(row.original[column.id as string]))
+        onCheck: () => handleFilterSelect(column.id as string, String(row.original[column.id as string]))
       }))
 
       const storedFilter = filterData.find(d => d.id === column.id)
@@ -305,7 +304,7 @@ export default function TableComponent(props: TableProp) {
         },
         subItems: getFilterData(filterSubItems.filter(filterSubItem => filterSubItem.label)).subItems,
         filterType: getFilterType(filterSubItems.find(filterSubItem => filterSubItem.label !== '')?.label),
-        onCommit: (e: Number[]) => handleFilterRange(e, column.id as string),
+        onCommit: (e: Number[]) => handleFilterNumber(e, column.id as string),
         onSelect: (e: {from: Date, to: Date}) => handleFilterDate(e, column.id as string),
       }
     })
@@ -330,7 +329,7 @@ export default function TableComponent(props: TableProp) {
   useEffect(() => {
     if(filterData.length > 0){
 
-      const sorted = [...filterData].sort((a,b) => a.order - b.order);
+      const sorted = [...filterData].sort((a,b) => Number(a.order) - Number(b.order));
 
       sorted.forEach(data => {
         table.getColumn(data.id)?.setFilterValue(prev => {

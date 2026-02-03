@@ -1,19 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { FilterData } from "@/context/types";
-import useAppContext from "@/context/useAppContext";
 import {
     DndContext,
     closestCenter,
     PointerSensor,
     useSensor,
     useSensors,
+    type DragEndEvent,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import {
-    arrayMove,
     horizontalListSortingStrategy,
     SortableContext,
     useSortable,
@@ -22,6 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 import { GripHorizontal } from "lucide-react";
+import type { FilterData } from "../DataTable/types";
 
 function SortableItem({ id }: { id: string }) {
     const { attributes, listeners, setNodeRef, transform, transition } =
@@ -31,7 +30,6 @@ function SortableItem({ id }: { id: string }) {
         transform: CSS.Transform.toString(transform),
         transition,
     };
-
 
     return (
         <div
@@ -50,35 +48,9 @@ function SortableItem({ id }: { id: string }) {
     );
 }
 
-export default function DragAndDropComponent({ label }: { label: string }) {
-
-    const { state: { filterData }, actions: { setFilterData } } = useAppContext()
-
+export default function DragAndDropComponent({ label, filterData, handleDragEnd }: 
+    { label: string, filterData: FilterData[], handleDragEnd: (event: DragEndEvent) => void }) {        
     const sensors = useSensors(useSensor(PointerSensor));
-
-    function handleDragEnd(event: any) {
-        const { active, over } = event;
-
-        if (!over) return;
-
-        if (active.id !== over.id) {
-            setFilterData((filterData) => {
-
-                const oldIdx = filterData.findIndex((item) => item.id === active.id);
-                const newIdx = filterData.findIndex((item) => item.id === over.id);
-
-                if (oldIdx === -1 || newIdx === -1) return filterData;
-
-                const moved = arrayMove(filterData, oldIdx, newIdx);
-
-                return moved.map((item, index) => ({
-                    ...item,
-                    order: index + 1
-                }));
-            });
-        }
-    }
-
     return (
         <DndContext
             sensors={sensors}
@@ -89,7 +61,7 @@ export default function DragAndDropComponent({ label }: { label: string }) {
             <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
             <div className="bg-white p-1.5 w-72 space-y-1.5">
                 {filterData.length > 0 ? <SortableContext
-                    items={filterData.map(item => item.id)}
+                    items={filterData.map(data => data.id)}
                     strategy={horizontalListSortingStrategy}
 
                 >
