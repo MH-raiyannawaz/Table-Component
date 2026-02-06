@@ -26,24 +26,6 @@ export const getMappedData = (data: Data[]) => {
   )
 }
 
-const normalizeBoolean = (value: unknown): boolean | null => {
-  if (typeof value === 'boolean') return value
-
-  if (typeof value === 'string') {
-    const v = value.toLowerCase().trim()
-    if (['true', 'yes', '1'].includes(v)) return true
-    if (['false', 'no', '0'].includes(v)) return false
-  }
-
-  if (typeof value === 'number') {
-    if (value === 1) return true
-    if (value === 0) return false
-  }
-
-  return null
-}
-
-
 export const getFilterType = (dataType: any): FilterType => {
 
   const isDateType =
@@ -70,7 +52,7 @@ export const getFilterType = (dataType: any): FilterType => {
 
 export const getFilterData = (filterSubItems: string[]): {
   filterType: FilterType,
-  subItems?: MenuSubItem[] | string | null,
+  subItems?: MenuSubItem[] | null,
   range?: Range | null
 } => {
   
@@ -112,16 +94,16 @@ export const getFilterData = (filterSubItems: string[]): {
   // Range 
 
   // BOOLEAN 
-  if (dataType === 'boolean') {
+ if (dataType === 'boolean') {
     return {
       filterType: 'boolean',
       subItems: [
-        { id: '1', label: String(true), isActive: false },
-        { id: '2', label: String(false), isActive: false }
+        { id: 'true', label: 'true', checked: false },
+        { id: 'false', label: 'false', checked: false }
       ],
       range: null
     }
-  }
+}
   // BOOLEAN 
 
   const filteredSubItems = [

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react"
 
 export default function IndeterminateCheckbox({
   indeterminate,
+  isHeader = false,
   onCheck,
   className = "",
   ...rest
@@ -20,7 +21,7 @@ export default function IndeterminateCheckbox({
       type="checkbox"
       ref={ref}
       className={className + " cursor-pointer"}
-      onChange={(e) => onCheck?.(e.target.checked)}
+      onChange={ isHeader ? onCheck : (e) => onCheck?.(e.target.checked)}
       {...rest}
     />
   )

@@ -11,14 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { type ReactNode } from "react"
-import type { MenuItem } from '../Table/types'
 import RangeFilter from "./Filters/RangeFilter"
 import CalenderFilter from "./Filters/CalenderFilter"
 import MultipleSelectFilter from "./Filters/MultipleSelectFilter"
 import DragAndDropComponent from "../DragAndDrop/DragAndDropComponent"
 import SelectFilter from "./Filters/SelectFilter"
 import type { DragEndEvent } from "@dnd-kit/core"
-import type { FilterData } from "../DataTable/types"
+import type { FilterData, MenuItem } from "../DataTable/types"
 
 export default function Dropdown({ children, label, draggable, menuItems, filterData, handleDragEnd }:
   { children: ReactNode, label: string, draggable?: Boolean,  menuItems?: MenuItem[], filterData?: FilterData[], handleDragEnd?: (event: DragEndEvent) => void }) {

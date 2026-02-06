@@ -16,15 +16,15 @@ function App() {
   
   const [total, setTotal] = useState(0)
   
-  let url = `https://dummyjson.com/users?skip=${pagination.pageIndex * pagination.pageSize}&limit=${pagination.pageSize}`
+  // let url = `https://dummyjson.com/users?skip=${pagination.pageIndex * pagination.pageSize}&limit=${pagination.pageSize}`
   
-  // let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
+  let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
 
   const [data, setData] = useState<Data[]>([])
   
   const handleData = async (url: string) => {
     let response = await getData(url)
-    let mappedData = getMappedData(response.users)
+    let mappedData = getMappedData(response)
 
     if(response.total){
       setTotal(response.total)

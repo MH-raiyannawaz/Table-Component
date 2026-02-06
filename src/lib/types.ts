@@ -6,7 +6,8 @@ export type Data = Record<string, unknown>;
 
 export type IndeterminateCheckboxProps = {
   indeterminate?: boolean
-  onCheck?: (checked: boolean) => void
+  isHeader?: boolean
+  onCheck?:(checked: boolean | React.ChangeEvent<HTMLInputElement>) => void
   className?: string
 } & Omit<HTMLProps<HTMLInputElement>, "onChange">
 

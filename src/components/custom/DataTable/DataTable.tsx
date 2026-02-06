@@ -5,7 +5,7 @@ import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel
 import type { FilterData, FilterType, Pagination } from "./types.ts";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import type { Data, StateSetter, MenuItem, DataTableContextType } from "./types.ts";
+import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType } from "./types.ts";
 import IndeterminateCheckbox from "../Table/mincomponents/IndeterminateCheckbox.tsx";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, SlidersVertical, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
@@ -17,7 +17,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { getFilterData, getFilterType, getPinnedColumnStyle } from './utils.ts';
 import type { Item } from '@/lib/types.ts';
 import { handleDownloadExcel } from '@/lib/utils.ts';
-import type { MenuSubItem } from '../Table/types.tsx';
 
 const MIN_COL_WIDTH = 200;
 
@@ -236,6 +235,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
                     return <IndeterminateCheckbox
                         {...{
                             size: 40,
+                            isHeader: true,
                             checked: table.getIsAllRowsSelected(),
                             indeterminate: table.getIsSomeRowsSelected(),
                             onCheck: table.getToggleAllRowsSelectedHandler(),
@@ -327,7 +327,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             columnOrder, columnSizing
         },
         manualPagination: true,
-        pageCount: Math.ceil(total / pagination.pageSize),
+        pageCount: Math.ceil((total ?? 0) / (pagination?.pageSize ?? 0)),
         enableRowSelection: true,
         enableColumnPinning: true,
         enableColumnResizing: true,
@@ -348,8 +348,10 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
 
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isNaN(parseInt(e.target.value)) && parseInt(e.target.value) >= 0) {
-            setPagination({ ...pagination, pageSize: parseInt(e.target.value) })
+        if (setPagination && pagination) {
+            if (!isNaN(parseInt(e.target.value)) && parseInt(e.target.value) >= 0) {
+                setPagination({ ...pagination, pageSize: parseInt(e.target.value) })
+            }
         }
     }
 
@@ -364,7 +366,9 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
     const handleResetFilters = () => {
         table.resetRowSelection()
         table.resetColumnVisibility()
-        setPagination({ pageIndex: 0, pageSize: 10 })
+        if (setPagination) {
+            setPagination({ pageIndex: 0, pageSize: 10 })
+        }
         setFilterData([])
     }
 
@@ -435,7 +439,6 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
     </DataTableContext.Provider>
 }
 
-
 DataTable.TopHeader = ({
     children, items, searchable = true }:
     { children?: ReactNode, items: Item[], searchable?: boolean }) => {
@@ -474,42 +477,25 @@ DataTable.TopHeader = ({
         }
     }
 
-    const handleFilterSelect = (
-        id: string,
-        label: string,
-        isActive: boolean,
-        filterType: FilterType = 'string'
-    ) => {
+    const handleFilterSelect = (selectedId: string, columnId: string) => {
         setFilterData(prev => {
-            const existing = prev.find(f => f.id === id)
+            const existing = prev.find(f => f.id === columnId)
 
             if (existing) {
-                const currentLabel = existing.labels?.[0]
-
-                if (currentLabel === label) {
-                    return prev.filter(f => f.id !== id)
-                }
-
+                // Update existing filter - replace with new single value
                 return prev.map(f =>
-                    f.id === id
-                        ? {
-                            ...f,
-                            labels: [label],
-                            filterType
-                        }
+                    f.id === columnId
+                        ? { ...f, labels: [selectedId] }
                         : f
                 )
+            } else {
+                // Add new filter with order property
+                return [...prev, {
+                    id: columnId,
+                    labels: [selectedId],
+                    order: prev.length // or use whatever order logic you have
+                }]
             }
-
-            return [
-                ...prev,
-                {
-                    id,
-                    order: prev.length + 1,
-                    labels: [label],
-                    filterType
-                }
-            ]
         })
     }
 
@@ -556,7 +542,6 @@ DataTable.TopHeader = ({
     }
 
     const handleFilterDate = (e: { from: Date, to: Date } | undefined, id: string) => {
-        // ✅ If undefined (cleared), remove the filter
         if (!e || !e.from || !e.to) {
             setFilterData(prev => prev.filter(data => data.id !== id))
             return
@@ -572,7 +557,7 @@ DataTable.TopHeader = ({
         if (fieldExist) {
             let mappedRangeData = filterData.map(data => {
                 if (data.id === id) {
-                    return { ...data, filterType: 'date', range }
+                    return { ...data, filterType: 'date' as const, range }
                 }
                 else {
                     return data
@@ -585,18 +570,14 @@ DataTable.TopHeader = ({
         }
     }
 
-    // In your DataTable.TopHeader component, replace the filterItems generation:
-
     let filterItems: MenuItem[]
     filterItems = columns
         .filter(column => column.id !== 'select')
         .map(column => {
-            // ✅ FIX: Check if this column already has a stored filter with a filterType
             const storedFilter = filterData.find(d => d.id === column.id)
 
-            // ✅ If stored filter exists, use its filterType (this preserves 'date' type)
             let filterType = storedFilter?.filterType || getFilterType(
-                table.getCoreRowModel().rows  // ✅ Use getCoreRowModel() not getRowModel()
+                table.getCoreRowModel().rows
                     .filter(row => row)
                     .map(row => row.original[column.id as string])
                     .find(label => label !== '')
@@ -636,18 +617,18 @@ DataTable.TopHeader = ({
                 let { subItems } = getFilterData(
                     table.getCoreRowModel().rows.map((row) => row.original[column.id as string]) as []
                 )
-                const activeFilter = filterData.find(d => d.id === column.id)
-                const activeLabel = activeFilter?.labels?.[0]
-                const updatedSubItems = subItems?.map(item => ({
+
+                const booleanSubItems = subItems?.map(item => ({
                     ...item,
-                    isActive: item.label === activeLabel
+                    checked: storedFilter?.labels?.includes(item.id as string) || false
                 }))
 
                 filterItem = {
                     ...filterItem,
-                    subItems: updatedSubItems,
-                    onChange: (e: { id: String, label: String, isActive: boolean }) =>
-                        handleFilterSelect(String(e.id), String(e.label), Boolean(e.isActive))
+                    subItems: booleanSubItems,
+                    onChange: (id: string) => {
+                        handleFilterSelect(id, column.id as string)
+                    }
                 }
             }
 
@@ -655,10 +636,10 @@ DataTable.TopHeader = ({
                 filterItem = {
                     ...filterItem,
                     range: {
-                        from: storedFilter?.range?.from ?? "",
-                        to: storedFilter?.range?.to ?? "",
+                        from: storedFilter?.range?.from,
+                        to: storedFilter?.range?.to,
                     },
-                    onSelect: (e: { from: Date; to: Date } | undefined) => {
+                    onSelect: (e?: { from: Date; to: Date } | undefined) => {
                         if (e?.from && e?.to) {
                             handleFilterDate({ from: e.from, to: e.to }, column.id as string)
                         } else {
@@ -711,9 +692,11 @@ DataTable.TopHeader = ({
             }
         }))
 
+    console.log(filterItems)
+
     const actionItemsHeader: MenuItem[] = [
         { id: 'select-data', type: 'action', label: 'Select Data', onClick: () => handleSelectData(table), onlySM: false, icon: ListChecks },
-        { id: 'views-data', type: 'filter', label: 'Views', onlySM: false, icon: SlidersVertical, subItems: actionSubItemsHeader },
+        { id: 'views-data', type: 'filter', label: 'Views', onlySM: false, icon: SlidersVertical, subItems: actionSubItemsHeader || null },
         { id: 'create-data', type: 'action', label: 'Create Data', onlySM: true },
         { id: 'download-data', type: 'action', label: 'Download Excel', onClick: () => handleDownloadExcel(table, data), onlySM: false, icon: Download }
     ]
@@ -746,7 +729,7 @@ DataTable.TopHeader = ({
         children ? children : <div className={`table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5`}>
             <div className="flex items-center w-full space-x-2.5">
                 {searchable && <div className="flex items-center space-x-2.5">
-                    <p className='w-20'>Page No: {pagination.pageIndex + 1}</p>
+                    <p className='w-20'>Page No: {Number(pagination?.pageIndex) + 1}</p>
                     <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-48 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
                 </div>}
                 <div className="flex w-full space-x-2.5">
@@ -844,6 +827,7 @@ const Body = ({ children }: { children?: ReactNode }) => {
                 })
             })
         }
+        console.log(filterData)
     }, [filterData])
 
     return (
@@ -937,7 +921,7 @@ DataTable.PerPage = () => {
 
     return <div className="per-page flex flex-col lg:flex-row items-center space-y-1.5 space-x-0 lg:space-y-0 lg:space-x-2.5">
         <span>Per Page: </span>
-        <Input value={pagination.pageSize} onChange={handleChange} className="scroll-hide h-7 lg:h-9 w-15 lg:w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
+        <Input value={pagination?.pageSize} onChange={handleChange} className="scroll-hide h-7 lg:h-9 w-15 lg:w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
     </div>
 }
 

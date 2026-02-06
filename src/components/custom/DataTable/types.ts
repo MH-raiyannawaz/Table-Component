@@ -24,7 +24,6 @@ export type MenuSubItem = {
   id?: string
   label?: string,
   checked?: boolean,
-  isActive: boolean
   onCheck?: (value?: boolean) => void
 }
 
@@ -45,7 +44,7 @@ export type MenuItem = {
   onClick?: () => void | null,
   onCommit?: (e: Number[]) => void | null,
   onSelect?: () => void | null,
-  onChange?: (value?: boolean) => void
+  onChange?: (id: string, label: string, active?: boolean) => void
   subItems?: MenuSubItem[] | null,
   range?: Range | null,
   onlySM?: boolean
@@ -58,7 +57,7 @@ export type FilterData = {
   id: string,
   order: Number,
   filterType?: FilterType,
-  labels?: string[],
+  labels?: string[]
   range?: Range
 }
 
@@ -68,8 +67,8 @@ export type DataTableContextType = {
     table: Table<Data>,
     columns: ColumnDef<Data>[]
     globalFilter: string
-    total: number
-    pagination: Pagination
+    total?: number
+    pagination?: Pagination
     sorting: SortingState
     fields: string[]
     columnVisibility: VisibilityState
@@ -83,8 +82,8 @@ export type DataTableContextType = {
   actions: {
     setData?: StateSetter<Data[]>
     setGlobalFilter: StateSetter<string>
-    setTotal: StateSetter<number>
-    setPagination: StateSetter<Pagination>
+    setTotal?: StateSetter<number>
+    setPagination?: StateSetter<Pagination>
     setSorting: StateSetter<SortingState>
     setColumnVisibility: StateSetter<VisibilityState>
     setColumnPinning: StateSetter<ColumnPinningState>

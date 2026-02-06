@@ -8,36 +8,47 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { MenuItem } from "../../DataTable/types"
-import { DropdownMenuSubContent, Label } from "@radix-ui/react-dropdown-menu"
-import { useMemo } from "react"
+import { DropdownMenuSubContent } from "@radix-ui/react-dropdown-menu"
+import { Label } from "@/components/ui/label"
 
 export default function SelectFilter({ menuItem }: { menuItem: MenuItem }) {
+  // Find the active subItem based on the checked flag
+  const currentActive = menuItem.subItems?.find(item => item.checked)
 
-  const activeLabel = useMemo(() => {
-    const activeItem = menuItem.subItems?.find(item => item.isActive)
-    return activeItem ? String(activeItem.label) : ''
-  }, [menuItem.subItems])
-
-
-  return <DropdownMenuSubContent avoidCollisions>
-    <div className="bg-white w-44 flex flex-col items-center p-2 ml-2.5 rounded shadow-xl">
-      <Label className='py-2'>Select</Label>
-      <Select value={activeLabel} onValueChange={(e) => {
-        menuItem.onChange?.({ id: menuItem.id, label: e, isActive: true })
-      }}>
-        <SelectTrigger className="w-full max-w-48">
-          <SelectValue placeholder="Select" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectLabel>Select</SelectLabel>
-            {menuItem.subItems?.map(subItem => (
-              <SelectItem key={subItem.id} value={subItem.label || ''}>{subItem.label}</SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </div>
-  </DropdownMenuSubContent>
+  return (
+    <DropdownMenuSubContent avoidCollisions>
+      <div className="bg-white w-44 flex flex-col items-center p-2 ml-2.5 rounded shadow-xl">
+        <Label className='py-2'>Select</Label>
+        <Select 
+          value={currentActive?.id} // Use the ID, not checked
+          onValueChange={(selectedId) => {
+            const selectedSubItem = menuItem.subItems?.find(
+              item => item.id === selectedId
+            )
+            if (selectedSubItem?.id && selectedSubItem?.label && menuItem.onChange) {
+              // Call onChange with just the id parameter
+              menuItem.onChange(selectedSubItem.id)
+            }
+          }}
+        >
+          <SelectTrigger className="w-full max-w-48">
+            <SelectValue placeholder="Select" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Select</SelectLabel>
+              {menuItem.subItems?.map(subItem => (
+                <SelectItem 
+                  key={subItem.id} 
+                  value={subItem.id}
+                >
+                  {subItem.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+    </DropdownMenuSubContent>
+  )
 }
-
