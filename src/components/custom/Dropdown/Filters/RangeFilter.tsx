@@ -2,7 +2,7 @@ import { DropdownMenuSubContent } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { useEffect, useState } from 'react'
-import type { MenuItem } from '../../../../components/custom/Table/types'
+import type { MenuItem } from '../../../../components/custom/DataTable/types'
 
 export default function RangeFilter({ menuItem }: { menuItem: MenuItem }) {
 

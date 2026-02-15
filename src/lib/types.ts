@@ -1,3 +1,4 @@
+import type { MenuItem } from "@/components/custom/Table/types";
 import type { LucideIcon } from "lucide-react";
 import type { HTMLProps } from "react";
 
@@ -26,5 +27,6 @@ export type Item = {
   icon?: LucideIcon,
   searchable?: boolean,
   menuType?: 'filter' | 'action' | 'priority'
-  onClick?: ()=> void
+  onClick?: ()=> void,
+  menuItems?: MenuItem[]
 }

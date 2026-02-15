@@ -8,7 +8,8 @@ export type Data = Record<string, unknown>;
 
 export type IndeterminateCheckboxProps = {
   indeterminate?: boolean
-  onCheck?: (checked: boolean) => void
+  isHeader?: boolean
+  onCheck?:(checked: boolean | React.ChangeEvent<HTMLInputElement>) => void
   className?: string
 } & Omit<HTMLProps<HTMLInputElement>, "onChange">
 
@@ -41,9 +42,9 @@ export type MenuItem = {
   label: string,
   type: string,
   filterType?: FilterType,
-  onClick?: () => void | null,
+  onClick?:  (row?: Data) => void | null,
   onCommit?: (e: Number[]) => void | null,
-  onSelect?: () => void | null,
+  onSelect?: (e: {from: Date, to: Date}) => void | null,
   onChange?: (id: string, label: string, active?: boolean) => void
   subItems?: MenuSubItem[] | null,
   range?: Range | null,

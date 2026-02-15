@@ -55,7 +55,7 @@ export const getFilterData = (filterSubItems: string[]): {
   subItems?: MenuSubItem[] | null,
   range?: Range | null
 } => {
-  
+
   let dataType = getFilterType(filterSubItems.map(filterSubItem => filterSubItem).filter(filterSubItem => filterSubItem)[0]);
 
   if (dataType === 'date') {
@@ -94,7 +94,7 @@ export const getFilterData = (filterSubItems: string[]): {
   // Range 
 
   // BOOLEAN 
- if (dataType === 'boolean') {
+  if (dataType === 'boolean') {
     return {
       filterType: 'boolean',
       subItems: [
@@ -103,12 +103,24 @@ export const getFilterData = (filterSubItems: string[]): {
       ],
       range: null
     }
-}
+  }
   // BOOLEAN 
 
-  const filteredSubItems = [
-    ...new Map(filterSubItems.map(item => [item.id, item])).values()
-  ]
+  const filteredSubItems = Array.from(
+    filterSubItems.reduce((map, item) => {
+      // If item is a string, convert it to proper object structure
+      const subItem = typeof item === 'string'
+        ? { id: item, label: item, checked: false }
+        : item
+
+      const existing = map.get(subItem.id)
+      // If item is checked OR no existing item, use this one
+      if (subItem.checked || !existing) {
+        map.set(subItem.id, subItem)
+      }
+      return map
+    }, new Map()).values()
+  )
 
 
   return { filterType: 'string', subItems: filteredSubItems, range: null }

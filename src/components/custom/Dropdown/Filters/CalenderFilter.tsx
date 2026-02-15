@@ -5,7 +5,7 @@ import { Calendar, CalendarDayButton } from "@/components/ui/calendar"
 import { addDays } from "date-fns"
 import { type DateRange } from "react-day-picker"
 import { DropdownMenuSubContent } from "@/components/ui/dropdown-menu"
-import type { MenuItem } from "../../Table/types"
+import type { MenuItem } from "../../DataTable/types"
 
 export default function CalendarCustomDays({menuItem}: {menuItem: MenuItem}) {
   const today = new Date()

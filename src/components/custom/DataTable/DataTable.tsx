@@ -2,11 +2,11 @@ import './datatable.css'
 import React, { createContext, useContext, useEffect, type CSSProperties } from "react";
 import { useMemo, useState, type ReactNode } from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type Cell, type ColumnDef, type ColumnPinningState, type Header, type Row, type SortingState, type Table as TableT, type VisibilityState } from "@tanstack/react-table";
-import type { FilterData, FilterType, Pagination } from "./types.ts";
+import type { FilterData, Pagination } from "./types.ts";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType } from "./types.ts";
-import IndeterminateCheckbox from "../Table/mincomponents/IndeterminateCheckbox.tsx";
+import IndeterminateCheckbox from "../../custom/IndeterminateCheckbox/IndeterminateCheckbox.tsx";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, SlidersVertical, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -179,11 +179,11 @@ const DraggableTableHeader = ({
     )
 }
 
-export const DataTable = ({ children, data, total, setTotal, pagination, setPagination }:
+export const DataTable = ({ children, data, total, setTotal, pagination, setPagination, rowItems: actionItemsRow }:
     {
         children: ReactNode, data: Data[], setData: StateSetter<Data[]>,
         pagination?: Pagination, setPagination?: StateSetter<Pagination>,
-        total?: number, setTotal?: StateSetter<number>
+        total?: number, setTotal?: StateSetter<number>, rowItems: MenuItem[]
     }
 ) => {
 
@@ -211,13 +211,6 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
     ])
 
     const fields = useMemo(() => data.length > 0 ? Object.keys(data[0]) : [], [data])
-
-    const actionItemsRow: MenuItem[] = [
-        { id: 'copy-id', type: 'action', label: 'Copy ID', onClick: () => { } },
-        { id: 'edit-data', type: 'action', label: 'Edit Data', onClick: () => { } },
-        { id: 'delete-data', type: 'action', label: 'Delete Data', onClick: () => { } },
-    ]
-
 
     const columnSizes = useMemo(() => {
         const sizes: Record<string, number> = {}
@@ -261,7 +254,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
 
                     id: field,
                     accessorKey: field,
-                    filterFn: (row, id, value) => {
+                    filterFn: (row: Row<Data>, id: string, value: any) => {
                         if (!value) return true
 
                         const cellValue = row.getValue(id)
@@ -275,7 +268,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
                         // date range
                         if (dateRange) {
                             const { from, to } = dateRange
-                            const d = new Date(cellValue)
+                            const d = new Date(cellValue as string | number | Date)
                             if (from && d < new Date(from)) return false
                             if (to && d > new Date(to)) return false
                         }
@@ -302,9 +295,9 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             {
                 id: 'actions',
                 header: 'Actions',
-                cell: () => (
+                cell: ({row}) => (
                     <div className="text-center">
-                        <Dropdown label="Actions" menuItems={actionItemsRow}>
+                        <Dropdown label="Actions" menuItems={actionItemsRow} data={row.original}>
                             <Button variant="outline" className="cursor-pointer" size="icon">
                                 <EllipsisVertical />
                             </Button>
@@ -440,8 +433,8 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
 }
 
 DataTable.TopHeader = ({
-    children, items, searchable = true }:
-    { children?: ReactNode, items: Item[], searchable?: boolean }) => {
+    children, headerItems, searchable = true }:
+    { children?: ReactNode, headerItems: Item[], searchable?: boolean }) => {
 
     const { state: { data, table, columns, filterData, globalFilter, pagination },
         actions: { setGlobalFilter, setFilterData, handleSelectData } } = useDataTableContext()
@@ -692,13 +685,10 @@ DataTable.TopHeader = ({
             }
         }))
 
-    console.log(filterItems)
-
     const actionItemsHeader: MenuItem[] = [
-        { id: 'select-data', type: 'action', label: 'Select Data', onClick: () => handleSelectData(table), onlySM: false, icon: ListChecks },
-        { id: 'views-data', type: 'filter', label: 'Views', onlySM: false, icon: SlidersVertical, subItems: actionSubItemsHeader || null },
-        { id: 'create-data', type: 'action', label: 'Create Data', onlySM: true },
-        { id: 'download-data', type: 'action', label: 'Download Excel', onClick: () => handleDownloadExcel(table, data), onlySM: false, icon: Download }
+        { id: 'select-data', type: 'action', label: 'Select Data', onClick: () => handleSelectData(table), icon: ListChecks },
+        { id: 'views-data', type: 'filter', label: 'Views', icon: SlidersVertical, subItems: actionSubItemsHeader || null },
+        { id: 'download-data', type: 'action', label: 'Download Excel', onClick: () => handleDownloadExcel(table, data), icon: Download }
     ]
 
     function handleDragEndMenu(event: DragEndEvent) {
@@ -733,11 +723,11 @@ DataTable.TopHeader = ({
                     <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-48 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
                 </div>}
                 <div className="flex w-full space-x-2.5">
-                    {items.filter(item => item.side === 'left').map(item => {
-                        let Icon = item.icon;
-                        return item.type === 'menu' ?
-                            <Dropdown label={item.label || ""} draggable={item.menuType === 'priority'}
-                                menuItems={item.menuType === 'action' ? actionItemsHeader :
+                    {headerItems.filter(headerItem => headerItem.side === 'left').map(headerItem => {
+                        let Icon = headerItem.icon;
+                        return headerItem.type === 'menu' ?
+                            <Dropdown label={headerItem.label || ""} draggable={headerItem.menuType === 'priority'}
+                                menuItems={headerItem.menuType === 'action' ? actionItemsHeader :
                                     filterItems}
                                 filterData={filterData} handleDragEnd={handleDragEndMenu}
                             >
@@ -745,20 +735,20 @@ DataTable.TopHeader = ({
                                     {Icon && <Icon />}
                                 </Button>
                             </Dropdown> :
-                            item.type === 'action' ?
-                                <Button variant={'outline'} onClick={item.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {item.label || ''}
+                            headerItem.type === 'action' ?
+                                <Button variant={'outline'} onClick={headerItem.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                                    {headerItem.label || ''}
                                     {Icon && <Icon />}
                                 </Button>
                                 : <></>
                     })}
                 </div>
                 <div className="flex space-x-2.5">
-                    {items.filter(item => item.side === 'right').map(item => {
-                        let Icon = item.icon;
-                        return item.type === 'menu' ?
-                            <Dropdown label={item.label || ""} draggable={item.menuType === 'priority'}
-                                menuItems={item.menuType === 'action' ? actionItemsHeader : filterItems}
+                    {headerItems.filter(headerItem => headerItem.side === 'right').map(headerItem => {
+                        let Icon = headerItem.icon;
+                        return headerItem.type === 'menu' ?
+                            <Dropdown label={headerItem.label || ""} draggable={headerItem.menuType === 'priority'}
+                                menuItems={headerItem.menuType === 'action' ? actionItemsHeader : filterItems}
                                 filterData={filterData}
                                 handleDragEnd={handleDragEndMenu}
                             >
@@ -766,9 +756,9 @@ DataTable.TopHeader = ({
                                     {Icon && <Icon />}
                                 </Button>
                             </Dropdown> :
-                            item.type === 'action' ?
-                                <Button variant={'outline'} onClick={item.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {item.label || ''}
+                            headerItem.type === 'action' ?
+                                <Button variant={'outline'} onClick={headerItem.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
+                                    {headerItem.label || ''}
                                     {Icon && <Icon />}
                                 </Button>
                                 : <></>

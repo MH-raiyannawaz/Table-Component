@@ -17,10 +17,11 @@ import MultipleSelectFilter from "./Filters/MultipleSelectFilter"
 import DragAndDropComponent from "../DragAndDrop/DragAndDropComponent"
 import SelectFilter from "./Filters/SelectFilter"
 import type { DragEndEvent } from "@dnd-kit/core"
-import type { FilterData, MenuItem } from "../DataTable/types"
+import type { Data, FilterData, MenuItem } from "../DataTable/types"
 
-export default function Dropdown({ children, label, draggable, menuItems, filterData, handleDragEnd }:
-  { children: ReactNode, label: string, draggable?: Boolean,  menuItems?: MenuItem[], filterData?: FilterData[], handleDragEnd?: (event: DragEndEvent) => void }) {
+export default function Dropdown({ children, label, draggable, menuItems, filterData, handleDragEnd, data }:
+  { children: ReactNode, label: string, draggable?: Boolean,  menuItems?: MenuItem[], filterData?: FilterData[], 
+    handleDragEnd?: (event: DragEndEvent) => void, data?: Data }) {
     return (
     <DropdownMenu>
       {/* Button */}
@@ -66,7 +67,7 @@ export default function Dropdown({ children, label, draggable, menuItems, filter
                   // Filter 
                   :
                   // Actions
-                  <DropdownMenuItem onClick={menuItem.onClick}>
+                  <DropdownMenuItem onClick={data ? ()=>{ menuItem.onClick(data)} : menuItem.onClick}>
                     {menuItem.label}
                     <DropdownMenuShortcut>{Icon && <Icon />}</DropdownMenuShortcut>
                   </DropdownMenuItem>

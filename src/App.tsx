@@ -5,40 +5,47 @@ import type { Data, Item } from './lib/types'
 import { DataTable } from './components/custom/DataTable'
 import { Funnel, ArrowUpDown, EllipsisVertical } from 'lucide-react'
 import { getMappedData } from './components/custom/DataTable/utils'
-import type { Pagination } from './components/custom/DataTable/types'
+import type { Pagination, MenuItem } from './components/custom/DataTable/types'
 
 function App() {
-  
-  const [ pagination, setPagination ] = useState<Pagination>({
+
+  const [pagination, setPagination] = useState<Pagination>({
     pageIndex: 0,
     pageSize: 10
   })
-  
+
   const [total, setTotal] = useState(0)
-  
-  // let url = `https://dummyjson.com/users?skip=${pagination.pageIndex * pagination.pageSize}&limit=${pagination.pageSize}`
-  
-  let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
+
+  let url = `https://dummyjson.com/users?skip=${pagination.pageIndex * pagination.pageSize}&limit=${pagination.pageSize}`
+
+  // let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
 
   const [data, setData] = useState<Data[]>([])
-  
+
   const handleData = async (url: string) => {
     let response = await getData(url)
-    let mappedData = getMappedData(response)
+    let mappedData = getMappedData(response.users)
 
-    if(response.total){
+    if (response.total) {
       setTotal(response.total)
     }
     setData(mappedData)
-    
+
   }
 
-  const items: Item[] = [
+  const headerItems: Item[] = [
     { id: 'filter-menu', type: 'menu', menuType: 'filter', side: 'left', label: 'Filter', icon: Funnel },
     { id: 'priority-menu', type: 'menu', menuType: 'priority', side: 'left', label: 'Priority Order', icon: ArrowUpDown },
     { id: 'action-menu', type: 'menu', menuType: 'action', side: 'right', label: 'Actions', icon: EllipsisVertical },
     { id: 'create-data', type: 'action', side: 'right', label: 'Create Data', onClick: () => { } },
   ]
+
+  const rowItems: MenuItem[] = [
+    { id: 'copy-id', type: 'action', label: 'Copy ID', onClick: (data?: Data) => {console.log(data)} },
+    { id: 'edit-data', type: 'action', label: 'Edit Data', onClick: (data?: Data) => {console.log(data)} },
+    { id: 'delete-data', type: 'action', label: 'Delete Data', onClick: (data?: Data) => {console.log(data)} },
+  ]
+
   useEffect(() => {
     handleData(url)
   }, [pagination.pageSize, pagination.pageIndex])
@@ -46,22 +53,23 @@ function App() {
   return (
     <div className="h-svh w-svw bg-slate-50 flex justify-center items-center">
       {/* DATATABLE */}
-      <DataTable 
-          data={data} 
-          setData={setData} 
-          total={total}
-          setTotal={setTotal}
-          pagination={pagination} 
-          setPagination={setPagination}
-        >
+      <DataTable
+        data={data}
+        setData={setData}
+        total={total}
+        setTotal={setTotal}
+        pagination={pagination}
+        setPagination={setPagination}
+        rowItems={rowItems}
+      >
 
         {/* TOP HEADER */}
-        <DataTable.TopHeader items={items} />
+        <DataTable.TopHeader headerItems={headerItems} />
         {/* TOP HEADER */}
 
         {/* BODY  */}
         <DataTable.Body>
-          <DataTable.Body.Header/>
+          <DataTable.Body.Header />
           <DataTable.Body.Rows />
         </DataTable.Body>
         {/* BODY  */}
