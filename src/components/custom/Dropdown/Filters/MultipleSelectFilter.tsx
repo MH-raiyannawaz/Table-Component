@@ -1,9 +1,9 @@
 import { DropdownMenuItem, DropdownMenuSubContent } from '@/components/ui/dropdown-menu'
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import type { MenuItem, MenuSubItem } from '../../Table/types'
+import type { MenuItem, MenuSubItem } from '../../DataTable/types'
 import { useState } from 'react'
-import IndeterminateCheckbox from '../../Table/mincomponents/IndeterminateCheckbox'
+import IndeterminateCheckbox from '../../IndeterminateCheckbox/IndeterminateCheckbox'
 
 export default function MultipleSelectFilter({ menuItems, menuItem }: { menuItems: MenuItem[], menuItem: MenuItem }) {
 

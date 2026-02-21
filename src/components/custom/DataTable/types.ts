@@ -6,6 +6,12 @@ import type { HTMLProps } from "react";
 export type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
 export type Data = Record<string, unknown>;
 
+export interface TopHeaderChildProps {
+    filterItems?: MenuItem[];
+    actionItemsHeader?: MenuItem[],
+    actionSubItemsHeader?: MenuSubItem[]
+}
+
 export type IndeterminateCheckboxProps = {
   indeterminate?: boolean
   isHeader?: boolean
@@ -48,6 +54,8 @@ export type MenuItem = {
   onChange?: (id: string, label: string, active?: boolean) => void
   subItems?: MenuSubItem[] | null,
   range?: Range | null,
+  custom?: boolean,
+  required?: boolean,
   onlySM?: boolean
   icon?: LucideIcon
 }
@@ -92,9 +100,10 @@ export type DataTableContextType = {
     setColumnOrder: StateSetter<string[]>
     setColumnSizing: StateSetter<ColumnSizing>
     handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
-    handleSelectData: (table: Table<Data>) => void,
+    handleSelectData: () => void,
     handleResetFilters: () => void,
     handleDragEnd: (event: DragEndEvent) => void,
+    handleDragEndMenu: (event: DragEndEvent) => void,
     setFilterData: StateSetter<FilterData[]>
   }
 }

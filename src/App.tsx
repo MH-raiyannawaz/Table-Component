@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { getData } from './lib/utils'
-import type { Data, Item } from './lib/types'
+import type { Data } from './lib/types'
 import { DataTable } from './components/custom/DataTable'
-import { Funnel, ArrowUpDown, EllipsisVertical } from 'lucide-react'
+import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download } from 'lucide-react'
 import { getMappedData } from './components/custom/DataTable/utils'
 import type { Pagination, MenuItem } from './components/custom/DataTable/types'
 
 function App() {
 
   const [pagination, setPagination] = useState<Pagination>({
-    pageIndex: 0,
+    pageIndex: 1,
     pageSize: 10
   })
 
   const [total, setTotal] = useState(0)
 
-  let url = `https://dummyjson.com/users?skip=${pagination.pageIndex * pagination.pageSize}&limit=${pagination.pageSize}`
+  let url = `https://dummyjson.com/users?skip=${(pagination.pageIndex - 1) * pagination.pageSize}&limit=${pagination.pageSize}`
 
   // let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
 
@@ -30,21 +30,7 @@ function App() {
       setTotal(response.total)
     }
     setData(mappedData)
-
   }
-
-  const headerItems: Item[] = [
-    { id: 'filter-menu', type: 'menu', menuType: 'filter', side: 'left', label: 'Filter', icon: Funnel },
-    { id: 'priority-menu', type: 'menu', menuType: 'priority', side: 'left', label: 'Priority Order', icon: ArrowUpDown },
-    { id: 'action-menu', type: 'menu', menuType: 'action', side: 'right', label: 'Actions', icon: EllipsisVertical },
-    { id: 'create-data', type: 'action', side: 'right', label: 'Create Data', onClick: () => { } },
-  ]
-
-  const rowItems: MenuItem[] = [
-    { id: 'copy-id', type: 'action', label: 'Copy ID', onClick: (data?: Data) => {console.log(data)} },
-    { id: 'edit-data', type: 'action', label: 'Edit Data', onClick: (data?: Data) => {console.log(data)} },
-    { id: 'delete-data', type: 'action', label: 'Delete Data', onClick: (data?: Data) => {console.log(data)} },
-  ]
 
   useEffect(() => {
     handleData(url)
@@ -60,23 +46,45 @@ function App() {
         setTotal={setTotal}
         pagination={pagination}
         setPagination={setPagination}
-        rowItems={rowItems}
+        rowItems={[
+          { id: 'copy-id', type: 'action', label: 'Copy ID', onClick: (data?: Data) => { console.log(data) } },
+          { id: 'edit-data', type: 'action', label: 'Edit Data', onClick: (data?: Data) => { console.log(data) } },
+          { id: 'delete-data', type: 'action', label: 'Delete Data', onClick: (data?: Data) => { console.log(data) } }
+        ]}
       >
 
         {/* TOP HEADER */}
-        <DataTable.TopHeader headerItems={headerItems} />
+        <DataTable.TopHeader>
+          <DataTable.LeftHeader>
+            <DataTable.Search />
+            <DataTable.Button id='filter-data' type='menu' menuType={'filter'} label='Filter' icon={Funnel} />
+            <DataTable.Button id='priority-data' type='menu' menuType={'priority'} label='Priority' icon={ArrowUpDown} />
+          </DataTable.LeftHeader>
+
+          <DataTable.RightHeader>
+            <DataTable.Button id='action-data' type='menu' menuType={'action'} label='Actions' icon={EllipsisVertical}
+              headerItems={[
+                { id: 'select-data', type: 'action', custom: true, required: true, label: 'Select Datas', icon: ListChecks },
+                { id: 'views-data', type: 'filter', custom: true, required: true, label: 'Views Datas', icon: SlidersVertical },
+                { id: 'download-data', type: 'actions', custom: false, label: '', icon: Download }
+              ]} />
+            <DataTable.Button id='select-data' type='select' selectType='row' label='Select data' icon={ListChecks}/>
+            <DataTable.Button id='select-header' type='filter' selectType='header' label='Select Header' icon={SlidersVertical}/>
+            <DataTable.Button id='create-data' type='action' label='Create Data' />
+          </DataTable.RightHeader>
+        </DataTable.TopHeader>
         {/* TOP HEADER */}
 
         {/* BODY  */}
         <DataTable.Body>
-          <DataTable.Body.Header />
-          <DataTable.Body.Rows />
+          <DataTable.Header />
+          <DataTable.Rows />
         </DataTable.Body>
         {/* BODY  */}
 
         {/* FOOTER */}
         <DataTable.Footer>
-          <DataTable.Paginations extendedPaginations={true} />
+          <DataTable.Paginations />
           <DataTable.PerPage />
         </DataTable.Footer>
         {/* FOOTER */}

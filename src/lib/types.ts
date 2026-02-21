@@ -1,4 +1,4 @@
-import type { MenuItem } from "@/components/custom/Table/types";
+import type { MenuItem } from "@/components/custom/DataTable/types";
 import type { LucideIcon } from "lucide-react";
 import type { HTMLProps } from "react";
 
@@ -17,7 +17,7 @@ export type TableProp = {
   setUrl: StateSetter<string>
 }
 
-export type ItemType = 'action' | 'menu' | 'input'
+export type ItemType = 'action' | 'menu' | 'select' | 'filter'
 
 export type Item = {
   id: string,
@@ -27,6 +27,7 @@ export type Item = {
   icon?: LucideIcon,
   searchable?: boolean,
   menuType?: 'filter' | 'action' | 'priority'
+  selectType?: 'header' | 'row'
   onClick?: ()=> void,
   menuItems?: MenuItem[]
 }

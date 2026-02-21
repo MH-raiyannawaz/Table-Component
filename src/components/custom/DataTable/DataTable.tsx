@@ -2,7 +2,7 @@ import './datatable.css'
 import React, { createContext, useContext, useEffect, type CSSProperties } from "react";
 import { useMemo, useState, type ReactNode } from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type Cell, type ColumnDef, type ColumnPinningState, type Header, type Row, type SortingState, type Table as TableT, type VisibilityState } from "@tanstack/react-table";
-import type { FilterData, Pagination } from "./types.ts";
+import type { FilterData, Pagination, TopHeaderChildProps } from "./types.ts";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType } from "./types.ts";
@@ -295,7 +295,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             {
                 id: 'actions',
                 header: 'Actions',
-                cell: ({row}) => (
+                cell: ({ row }) => (
                     <div className="text-center">
                         <Dropdown label="Actions" menuItems={actionItemsRow} data={row.original}>
                             <Button variant="outline" className="cursor-pointer" size="icon">
@@ -377,6 +377,30 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
         }
     }
 
+    function handleDragEndMenu(event: DragEndEvent) {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        if (active.id !== over.id) {
+            setFilterData((filterData) => {
+
+                const oldIdx = filterData.findIndex((item) => item.id === active.id);
+                const newIdx = filterData.findIndex((item) => item.id === over.id);
+
+                if (oldIdx === -1 || newIdx === -1) return filterData;
+
+                const moved = arrayMove(filterData, oldIdx, newIdx);
+
+                return moved.map((item, index) => ({
+                    ...item,
+                    order: index + 1
+                }));
+            });
+        }
+
+    }
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -423,6 +447,7 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             handleSelectData,
             handleResetFilters,
             handleDragEnd,
+            handleDragEndMenu,
             setFilterData
         },
     }}>
@@ -432,12 +457,10 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
     </DataTableContext.Provider>
 }
 
-DataTable.TopHeader = ({
-    children, headerItems, searchable = true }:
-    { children?: ReactNode, headerItems: Item[], searchable?: boolean }) => {
+DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
 
-    const { state: { data, table, columns, filterData, globalFilter, pagination },
-        actions: { setGlobalFilter, setFilterData, handleSelectData } } = useDataTableContext()
+    const { state: { table, columns, filterData },
+        actions: { setFilterData, handleSelectData } } = useDataTableContext()
 
     const handleFilterMultipleSelect = (id: string, label: string) => {
         const existing = filterData.find(f => f.id === id)
@@ -686,94 +709,157 @@ DataTable.TopHeader = ({
         }))
 
     const actionItemsHeader: MenuItem[] = [
-        { id: 'select-data', type: 'action', label: 'Select Data', onClick: () => handleSelectData(table), icon: ListChecks },
-        { id: 'views-data', type: 'filter', label: 'Views', icon: SlidersVertical, subItems: actionSubItemsHeader || null },
-        { id: 'download-data', type: 'action', label: 'Download Excel', onClick: () => handleDownloadExcel(table, data), icon: Download }
+        { id: 'select-data', type: 'action', label: 'Select Data', onClick: handleSelectData, icon: ListChecks },
+        { id: 'views-data', type: 'filter', label: 'Views Data', icon: SlidersVertical, subItems: actionSubItemsHeader || null },
     ]
 
-    function handleDragEndMenu(event: DragEndEvent) {
-        const { active, over } = event;
+    return (
+        <div className={`table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5`}>
+            <div className="flex items-center w-full space-x-2.5">
+                {React.Children.map(children, (child) => {
+                    if (React.isValidElement<TopHeaderChildProps>(child)) {
+                        return React.cloneElement(child, {
+                            filterItems,
+                            actionItemsHeader,
+                        });
+                    }
+                    return child;
+                })}
+            </div>
+        </div>
+    )
+}
 
-        if (!over) return;
+DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
+    return <div className="flex w-full space-x-2.5">
+        {React.Children.map(children, (child) => {
+            if (React.isValidElement<TopHeaderChildProps>(child)) {
+                return React.cloneElement(child, {
+                    filterItems,
+                    actionItemsHeader,
+                });
+            }
+            return child;
+        })}
+    </div >
+}
 
-        if (active.id !== over.id) {
-            setFilterData((filterData) => {
+DataTable.RightHeader = ({ children, filterItems, actionItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
+    return <div className="flex w-full space-x-2.5">
+        {React.Children.map(children, (child) => {
+            if (React.isValidElement<TopHeaderChildProps>(child)) {
+                return React.cloneElement(child, {
+                    filterItems,
+                    actionItemsHeader,
+                });
+            }
+            return child;
+        })}
+    </div >
+}
 
-                const oldIdx = filterData.findIndex((item) => item.id === active.id);
-                const newIdx = filterData.findIndex((item) => item.id === over.id);
+DataTable.Search = () => {
+    const { state: { pagination, globalFilter }, actions: { setGlobalFilter } } = useDataTableContext()
+    return <div className="flex items-center space-x-2.5">
+        <p className='w-20'>Page No: {Number(pagination?.pageIndex) + 1}</p>
+        <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-48 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
+    </div>
+}
 
-                if (oldIdx === -1 || newIdx === -1) return filterData;
+DataTable.Button = ({ label, type, menuType, selectType, icon, onClick, actionItemsHeader, headerItems, filterItems }: Item & { headerItems?: MenuItem[] } & TopHeaderChildProps) => {
 
-                const moved = arrayMove(filterData, oldIdx, newIdx);
+    const { state: { filterData }, actions: { handleDragEndMenu, handleSelectData } } = useDataTableContext()
 
-                return moved.map((item, index) => ({
-                    ...item,
-                    order: index + 1
-                }));
+    const Icon = icon
+
+    if (type === 'menu') {
+
+        if (menuType === 'priority') {
+            return <Dropdown
+                label={label || ""}
+                draggable={true}
+                filterData={filterData}
+                handleDragEnd={handleDragEndMenu}
+            >
+                <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                    {Icon && <Icon />}
+                </Button>
+            </Dropdown>
+        }
+
+        if (menuType === 'filter') {
+            return (
+                <Dropdown
+                    label={label || ""}
+                    menuItems={filterItems}
+                >
+                    <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                        {Icon && <Icon />}
+                    </Button>
+                </Dropdown>
+            )
+        }
+
+        if (menuType === 'action') {
+            const combinedArray = actionItemsHeader?.map(itemOne => {
+                const updatedItem = headerItems?.find(itemTwo => itemTwo.id === itemOne.id);
+
+                return {
+                    ...itemOne,
+                    ...updatedItem, // overrides matching keys like label
+                };
             });
+
+            return (
+                <Dropdown
+                    label={label || ""}
+                    menuItems={combinedArray}
+                >
+                    <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                        {Icon && <Icon />}
+                    </Button>
+                </Dropdown>
+            )
         }
 
     }
 
-    return (
-        children ? children : <div className={`table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5`}>
-            <div className="flex items-center w-full space-x-2.5">
-                {searchable && <div className="flex items-center space-x-2.5">
-                    <p className='w-20'>Page No: {Number(pagination?.pageIndex) + 1}</p>
-                    <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-48 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
-                </div>}
-                <div className="flex w-full space-x-2.5">
-                    {headerItems.filter(headerItem => headerItem.side === 'left').map(headerItem => {
-                        let Icon = headerItem.icon;
-                        return headerItem.type === 'menu' ?
-                            <Dropdown label={headerItem.label || ""} draggable={headerItem.menuType === 'priority'}
-                                menuItems={headerItem.menuType === 'action' ? actionItemsHeader :
-                                    filterItems}
-                                filterData={filterData} handleDragEnd={handleDragEndMenu}
-                            >
-                                <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {Icon && <Icon />}
-                                </Button>
-                            </Dropdown> :
-                            headerItem.type === 'action' ?
-                                <Button variant={'outline'} onClick={headerItem.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {headerItem.label || ''}
-                                    {Icon && <Icon />}
-                                </Button>
-                                : <></>
-                    })}
-                </div>
-                <div className="flex space-x-2.5">
-                    {headerItems.filter(headerItem => headerItem.side === 'right').map(headerItem => {
-                        let Icon = headerItem.icon;
-                        return headerItem.type === 'menu' ?
-                            <Dropdown label={headerItem.label || ""} draggable={headerItem.menuType === 'priority'}
-                                menuItems={headerItem.menuType === 'action' ? actionItemsHeader : filterItems}
-                                filterData={filterData}
-                                handleDragEnd={handleDragEndMenu}
-                            >
-                                <Button variant={'outline'} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {Icon && <Icon />}
-                                </Button>
-                            </Dropdown> :
-                            headerItem.type === 'action' ?
-                                <Button variant={'outline'} onClick={headerItem.onClick} className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white hover:text-white">
-                                    {headerItem.label || ''}
-                                    {Icon && <Icon />}
-                                </Button>
-                                : <></>
-                    })}
-                </div>
-            </div>
-        </div>
-    )
+    if (type === 'select') {
+        if (selectType === 'row') {
+            return (
+                <Button
+                    variant="outline"
+                    onClick={handleSelectData}
+                    className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
+                >
+                    {label}
+                    {Icon && <Icon />}
+                </Button>
+            )
+        }
+    }
+
+    if (type === 'action') {
+        return (
+            <Button
+                variant="outline"
+                onClick={onClick}
+                className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
+            >
+                {label}
+                {Icon && <Icon />}
+            </Button>
+        )
+    }
+
+    return null
 }
 
 DataTable.PopUp = ({ children }: { children: ReactNode }) => {
     return { children }
 }
 
-const Body = ({ children }: { children?: ReactNode }) => {
+DataTable.Body = ({ children }: { children?: ReactNode }) => {
 
     let { state: { table, filterData, sensors }, actions: { handleResetFilters, handleDragEnd } } = useDataTableContext()
 
@@ -846,9 +932,7 @@ const Body = ({ children }: { children?: ReactNode }) => {
     )
 }
 
-DataTable.Body = Body;
-
-Body.Header = () => {
+DataTable.Header = () => {
     let { state: { table, columnOrder } } = useDataTableContext();
 
     return <TableHeader className="bg-white z-10 h-14">
@@ -867,7 +951,7 @@ Body.Header = () => {
     </TableHeader>
 }
 
-Body.Rows = () => {
+DataTable.Rows = () => {
     const { state: { table, columnOrder } } = useDataTableContext()
     return <TableBody>
         {table.getRowModel().rows.map(row => (
@@ -886,9 +970,27 @@ Body.Rows = () => {
     </TableBody>
 }
 
-DataTable.Paginations = ({ extendedPaginations = false }: { extendedPaginations?: Boolean }) => {
+DataTable.Paginations = ({ extendedPaginations = false }:
+    { extendedPaginations?: Boolean }) => {
 
-    const { state: { table } } = useDataTableContext()
+    const { state: { table, total, pagination }, actions: { setPagination } } = useDataTableContext()
+
+    const paginationLength = total && pagination ? Math.round(total / pagination?.pageSize) : 0
+
+    let paginationLists: ReactNode[] = []
+
+    for (let i = 1; i < paginationLength + 1; i++) {
+        let button = <Button variant={'outline'} disabled={pagination?.pageIndex === i} onClick={() => { setPagination({ ...pagination, pageIndex: i }) }} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none">
+            {i}
+        </Button>
+        paginationLists = [...paginationLists, button]
+    }
+
+    paginationLists = [...paginationLists.slice(pagination?.pageIndex === 1 ? pagination?.pageIndex - 1 : pagination?.pageIndex - 2, pagination?.pageIndex + 2),
+    <Button variant={'outline'} disabled className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none">
+        {'***'}
+    </Button>,
+    paginationLists[paginationLists.length - 1]]
 
     return <div className="btn-group flex items-center space-x-2.5">
         {extendedPaginations && <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
@@ -897,6 +999,7 @@ DataTable.Paginations = ({ extendedPaginations = false }: { extendedPaginations?
         <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
             <ChevronLeft />
         </Button>
+        {...paginationLists}
         <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
             <ChevronRight />
         </Button>

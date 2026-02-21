@@ -1,4 +1,4 @@
-import type { FilterType, Range } from "@/components/custom/Table/types"
+import type { FilterType, Range } from "@/components/custom/DataTable/types"
 import type { Data, StateSetter } from "@/lib/types"
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core"
 import type { SortingState, VisibilityState, ColumnPinningState, Table } from "@tanstack/react-table"
