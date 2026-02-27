@@ -54,7 +54,7 @@ export type MenuItem = {
   onChange?: (id: string, label: string, active?: boolean) => void
   subItems?: MenuSubItem[] | null,
   range?: Range | null,
-  custom?: boolean,
+  builtIn?: boolean,
   required?: boolean,
   onlySM?: boolean
   icon?: LucideIcon

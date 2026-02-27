@@ -16,7 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CSS } from '@dnd-kit/utilities';
 import { getFilterData, getFilterType, getPinnedColumnStyle } from './utils.ts';
 import type { Item } from '@/lib/types.ts';
-import { handleDownloadExcel } from '@/lib/utils.ts';
 
 const MIN_COL_WIDTH = 200;
 
@@ -721,6 +720,7 @@ DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
                         return React.cloneElement(child, {
                             filterItems,
                             actionItemsHeader,
+                            actionSubItemsHeader
                         });
                     }
                     return child;
@@ -730,13 +730,14 @@ DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
     )
 }
 
-DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
+DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
     return <div className="flex w-full space-x-2.5">
         {React.Children.map(children, (child) => {
             if (React.isValidElement<TopHeaderChildProps>(child)) {
                 return React.cloneElement(child, {
                     filterItems,
                     actionItemsHeader,
+                    actionSubItemsHeader
                 });
             }
             return child;
@@ -744,13 +745,14 @@ DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader }: TopHeaderC
     </div >
 }
 
-DataTable.RightHeader = ({ children, filterItems, actionItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
+DataTable.RightHeader = ({ children, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
     return <div className="flex w-full space-x-2.5">
         {React.Children.map(children, (child) => {
             if (React.isValidElement<TopHeaderChildProps>(child)) {
                 return React.cloneElement(child, {
                     filterItems,
                     actionItemsHeader,
+                    actionSubItemsHeader
                 });
             }
             return child;
@@ -766,9 +768,9 @@ DataTable.Search = () => {
     </div>
 }
 
-DataTable.Button = ({ label, type, menuType, selectType, icon, onClick, actionItemsHeader, headerItems, filterItems }: Item & { headerItems?: MenuItem[] } & TopHeaderChildProps) => {
+DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, headerItems, filterItems }: Item & { headerItems?: MenuItem[] } & TopHeaderChildProps) => {
 
-    const { state: { filterData }, actions: { handleDragEndMenu, handleSelectData } } = useDataTableContext()
+    const { state: { filterData }, actions: { handleDragEndMenu } } = useDataTableContext()
 
     const Icon = icon
 
@@ -801,19 +803,27 @@ DataTable.Button = ({ label, type, menuType, selectType, icon, onClick, actionIt
         }
 
         if (menuType === 'action') {
-            const combinedArray = actionItemsHeader?.map(itemOne => {
-                const updatedItem = headerItems?.find(itemTwo => itemTwo.id === itemOne.id);
+            const combinedArray: MenuItem[] = [
+                // Step 1: Update existing items
+                ...actionItemsHeader.map(itemOne => {
+                    const updatedItem = headerItems?.find(itemTwo => itemTwo.id === itemOne.id);
 
-                return {
-                    ...itemOne,
-                    ...updatedItem, // overrides matching keys like label
-                };
-            });
+                    return {
+                        ...itemOne,
+                        ...updatedItem, // override existing keys
+                    };
+                }),
+
+                // Step 2: Add new items that don't exist in actionItemsHeader
+                ...(headerItems?.filter(
+                    itemTwo => !actionItemsHeader.some(itemOne => itemOne.id === itemTwo.id)
+                ) || [])
+            ];
 
             return (
-                <Dropdown
+            <Dropdown
                     label={label || ""}
-                    menuItems={combinedArray}
+                    menuItems={combinedArray?.filter(comArr => comArr.required !== false)}
                 >
                     <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
                         {Icon && <Icon />}
@@ -824,20 +834,33 @@ DataTable.Button = ({ label, type, menuType, selectType, icon, onClick, actionIt
 
     }
 
-    if (type === 'select') {
-        if (selectType === 'row') {
-            return (
-                <Button
-                    variant="outline"
-                    onClick={handleSelectData}
-                    className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
-                >
-                    {label}
-                    {Icon && <Icon />}
-                </Button>
-            )
-        }
-    }
+    // if (type === 'select') {
+    //     if (selectType === 'row') {
+    //         return (
+    //             <Button
+    //                 variant="outline"
+    //                 onClick={handleSelectData}
+    //                 className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
+    //             >
+    //                 {label}
+    //                 {Icon && <Icon />}
+    //             </Button>
+    //         )
+    //     }
+    //      if (selectType === 'header') {
+    //         return (
+    //             <Dropdown
+    //                 label={label || ""}
+    //                 select={true}
+    //                 menuItems={actionSubItemsHeader}
+    //             >
+    //                 <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+    //                     {Icon && <Icon />}
+    //                 </Button>
+    //             </Dropdown>
+    //         )
+    //     }
+    // }
 
     if (type === 'action') {
         return (

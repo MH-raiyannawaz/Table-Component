@@ -64,12 +64,10 @@ function App() {
           <DataTable.RightHeader>
             <DataTable.Button id='action-data' type='menu' menuType={'action'} label='Actions' icon={EllipsisVertical}
               headerItems={[
-                { id: 'select-data', type: 'action', custom: true, required: true, label: 'Select Datas', icon: ListChecks },
-                { id: 'views-data', type: 'filter', custom: true, required: true, label: 'Views Datas', icon: SlidersVertical },
-                { id: 'download-data', type: 'actions', custom: false, label: '', icon: Download }
+                { id: 'select-data', type: 'action', builtIn: true, required: true, label: 'Select Datas', icon: ListChecks },
+                { id: 'views-data', type: 'filter', builtIn: true, required: true, label: 'Views Datas', icon: SlidersVertical },
+                { id: 'download-data', type: 'actions', builtIn: false, label: 'Download', icon: Download }
               ]} />
-            <DataTable.Button id='select-data' type='select' selectType='row' label='Select data' icon={ListChecks}/>
-            <DataTable.Button id='select-header' type='filter' selectType='header' label='Select Header' icon={SlidersVertical}/>
             <DataTable.Button id='create-data' type='action' label='Create Data' />
           </DataTable.RightHeader>
         </DataTable.TopHeader>
