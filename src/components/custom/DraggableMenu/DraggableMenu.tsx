@@ -48,8 +48,8 @@ function SortableItem({ id }: { id: string }) {
     );
 }
 
-export default function DragAndDropComponent({ label, filterData, handleDragEnd }: 
-    { label: string, filterData: FilterData[], handleDragEnd: (event: DragEndEvent) => void }) {        
+export default function DraggableMenu({ filterData, handleDragEnd }: 
+    { filterData: FilterData[], handleDragEnd: (event: DragEndEvent) => void }) {        
     const sensors = useSensors(useSensor(PointerSensor));
     return (
         <DndContext
@@ -58,7 +58,6 @@ export default function DragAndDropComponent({ label, filterData, handleDragEnd 
             onDragEnd={handleDragEnd}
             modifiers={[restrictToVerticalAxis]}
         >
-            <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
             <div className="bg-white p-1.5 w-72 space-y-1.5">
                 {filterData.length > 0 ? <SortableContext
                     items={filterData.map(data => data.id)}

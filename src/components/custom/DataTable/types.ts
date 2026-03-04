@@ -1,3 +1,4 @@
+import type { Button } from "@/components/ui/button";
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core"
 import type { ColumnDef, ColumnPinningState, SortingState, Table, VisibilityState } from "@tanstack/react-table"
 import type { LucideIcon } from "lucide-react";
@@ -26,6 +27,8 @@ export type Pagination = {
 
 export type RowSelection = Record<string, boolean>
 export type ColumnSizing = Record<string, number>
+
+export type ButtonProps = React.ComponentProps<typeof Button>
 
 export type MenuSubItem = {
   id?: string
@@ -70,6 +73,22 @@ export type FilterData = {
   range?: Range
 }
 
+export type HeaderFunctionType = {
+  sortable: Boolean,
+  draggable: Boolean,
+  resizable: Boolean,
+  canPin: Boolean,
+}
+
+export type RowActionType = {
+  label?: string,
+  headerLabel?: string,
+  icon?: LucideIcon,
+  rowItems: MenuItem[],
+  buttonClassName: string,
+  buttonVariant: ButtonProps['variant']
+}
+
 export type DataTableContextType = {
   state: {
     data: Data[],
@@ -79,14 +98,16 @@ export type DataTableContextType = {
     total?: number
     pagination?: Pagination
     sorting: SortingState
-    fields: string[]
+    fields: string[],
+    isRowActions: RowActionType | null,
     columnVisibility: VisibilityState
     columnPinning: ColumnPinningState
     rowSelection: RowSelection
     columnOrder: string[]
     columnSizing: ColumnSizing,
     sensors: SensorDescriptor<SensorOptions>[],
-    filterData: FilterData[]
+    filterData: FilterData[], 
+    headerFunctions: HeaderFunctionType
   }
   actions: {
     setData?: StateSetter<Data[]>
@@ -94,6 +115,7 @@ export type DataTableContextType = {
     setTotal?: StateSetter<number>
     setPagination?: StateSetter<Pagination>
     setSorting: StateSetter<SortingState>
+    setIsRowActions: StateSetter<RowActionType | null>
     setColumnVisibility: StateSetter<VisibilityState>
     setColumnPinning: StateSetter<ColumnPinningState>
     setRowSelection: StateSetter<RowSelection>
@@ -104,6 +126,7 @@ export type DataTableContextType = {
     handleResetFilters: () => void,
     handleDragEnd: (event: DragEndEvent) => void,
     handleDragEndMenu: (event: DragEndEvent) => void,
-    setFilterData: StateSetter<FilterData[]>
+    setFilterData: StateSetter<FilterData[]>,
+    setHeaderFunctions: StateSetter<HeaderFunctionType>
   }
 }

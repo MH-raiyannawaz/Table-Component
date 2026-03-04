@@ -14,7 +14,7 @@ import { type ReactNode } from "react"
 import RangeFilter from "./Filters/RangeFilter"
 import CalenderFilter from "./Filters/CalenderFilter"
 import MultipleSelectFilter from "./Filters/MultipleSelectFilter"
-import DragAndDropComponent from "../DragAndDrop/DragAndDropComponent"
+import ProrityOrder from "../DraggableMenu/DraggableMenu"
 import SelectFilter from "./Filters/SelectFilter"
 import type { DragEndEvent } from "@dnd-kit/core"
 import type { Data, FilterData, MenuItem } from "../DataTable/types"
@@ -31,13 +31,13 @@ export default function Dropdown({ children, label, draggable, menuItems, filter
       {/* Button */}
 
       <DropdownMenuContent className="relative left-16">
-          { filterData?.length && draggable && handleDragEnd ?
+        <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
+          { draggable && handleDragEnd ?
           <DropdownMenuGroup>
-            <DragAndDropComponent label={label} filterData={filterData} handleDragEnd={handleDragEnd}/>
+            <ProrityOrder filterData={filterData || []} handleDragEnd={handleDragEnd}/>
           </DropdownMenuGroup>
           : <DropdownMenuGroup className="max-h-74 min-w-52">
             {/* Dropdown Header  */}
-            <DropdownMenuLabel className="p-2 font-semibold">{label}</DropdownMenuLabel>
             {/* Dropdown Header  */}
             {
               menuItems?.map(menuItem => {

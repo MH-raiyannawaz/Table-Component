@@ -2,13 +2,13 @@ import './datatable.css'
 import React, { createContext, useContext, useEffect, type CSSProperties } from "react";
 import { useMemo, useState, type ReactNode } from "react";
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type Cell, type ColumnDef, type ColumnPinningState, type Header, type Row, type SortingState, type Table as TableT, type VisibilityState } from "@tanstack/react-table";
-import type { FilterData, Pagination, TopHeaderChildProps } from "./types.ts";
+import { type FilterData, type HeaderFunctionType, type Pagination, type TopHeaderChildProps } from "./types.ts";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType } from "./types.ts";
+import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType, RowActionType, ButtonProps } from "./types.ts";
 import IndeterminateCheckbox from "../../custom/IndeterminateCheckbox/IndeterminateCheckbox.tsx";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, SlidersVertical, Trash } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, SlidersVertical, Star, Trash } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import Dropdown from "../Dropdown/Dropdown.tsx";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
@@ -27,7 +27,7 @@ export const useDataTableContext = () => {
     return ctx
 }
 
-const DragAlongCell = ({ cell }: { cell: Cell<Data, unknown> }) => {
+const DragAlongCell = ({ cell, className }: { cell: Cell<Data, unknown>, className?: string }) => {
     const { isDragging, setNodeRef, transform } = useSortable({
         id: cell.column.id,
     })
@@ -57,7 +57,7 @@ const DragAlongCell = ({ cell }: { cell: Cell<Data, unknown> }) => {
             ref={setNodeRef}
             key={cell.id}
             style={style}
-            className={`px-2 py-1`}
+            className={`px-2 py-1 ${className}`}
         >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
             {isLastLeftPinned && (
@@ -71,15 +71,19 @@ const DragAlongCell = ({ cell }: { cell: Cell<Data, unknown> }) => {
 }
 
 const DraggableTableHeader = ({
-    table, header,
+    table, header, className
 }: {
-    table: TableT<Data>, header: Header<Data, unknown>
+    table: TableT<Data>, header: Header<Data, unknown>, className: string
 }) => {
     const { attributes, isDragging, listeners, setNodeRef, transform } =
         useSortable({
             id: header.column.id,
 
         })
+
+    const { state: { headerFunctions } } = useDataTableContext()
+    let { sortable, draggable, resizable, canPin } = headerFunctions
+
     const pinnedLeft = table.getState().columnPinning.left || []
     const isLastLeftPinned =
         pinnedLeft.length > 0 &&
@@ -107,7 +111,7 @@ const DraggableTableHeader = ({
             ref={setNodeRef}
             key={header.id}
             style={{ minWidth: header.getSize(), ...style }}
-            className="px-2 pb-2 border bg-slate-100 text-left"
+            className={`px-2 pb-2 text-left ${className}`}
         >
             <div className="flex justify-between items-center space-x-5">
                 <span>
@@ -119,7 +123,7 @@ const DraggableTableHeader = ({
                         )}
                 </span>
                 <div className="flex">
-                    {header.column.id !== 'select' && header.column.id !== 'actions' &&
+                    {sortable && header.column.id !== 'select' && header.column.id !== 'actions' &&
                         <span>
                             {header.column.getIsSorted() === 'asc' && (
                                 <ChevronDown cursor={'pointer'} className="h-5"
@@ -138,7 +142,7 @@ const DraggableTableHeader = ({
                             )}
                         </span>
                     }
-                    {header.column.id !== 'select' && header.column.id !== 'actions' && <span>
+                    {canPin && header.column.id !== 'select' && header.column.id !== 'actions' && <span>
                         {header.column.getIsPinned() ? (
                             <PinOff
                                 className="h-5"
@@ -153,12 +157,12 @@ const DraggableTableHeader = ({
                             />
                         )}
                     </span>}
-                    {header.column.id !== 'select' && header.column.id !== 'actions' &&
+                    {draggable && header.column.id !== 'select' && header.column.id !== 'actions' &&
                         <span>
                             <GripVertical cursor={'grab'} {...listeners} {...attributes} />
                         </span>
                     }
-                    {header.column.getCanResize() && (
+                    {resizable && header.column.getCanResize() && (
                         <div
                             onMouseDown={header.getResizeHandler()}
                             onTouchStart={header.getResizeHandler()}
@@ -178,11 +182,12 @@ const DraggableTableHeader = ({
     )
 }
 
-export const DataTable = ({ children, data, total, setTotal, pagination, setPagination, rowItems: actionItemsRow }:
+export const DataTable = ({ children, className, data, total,
+     setTotal, pagination, setPagination }:
     {
-        children: ReactNode, data: Data[], setData: StateSetter<Data[]>,
+        children: ReactNode, className: string, data: Data[], setData: StateSetter<Data[]>,
         pagination?: Pagination, setPagination?: StateSetter<Pagination>,
-        total?: number, setTotal?: StateSetter<number>, rowItems: MenuItem[]
+        total?: number, setTotal?: StateSetter<number>
     }
 ) => {
 
@@ -208,6 +213,15 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
     const [filterData, setFilterData] = useState<FilterData[]>([
         // {range: {min: }}
     ])
+
+    const [isRowActions, setIsRowActions] = useState<RowActionType | null>(null)
+
+    const [headerFunctions, setHeaderFunctions] = useState<HeaderFunctionType>({
+        canPin: false,
+        resizable: false,
+        sortable: false,
+        draggable: false,
+    })
 
     const fields = useMemo(() => data.length > 0 ? Object.keys(data[0]) : [], [data])
 
@@ -291,21 +305,22 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
                     enablePinning: true,
                 }
             )),
-            {
+            ...(isRowActions ? [{
                 id: 'actions',
-                header: 'Actions',
-                cell: ({ row }) => (
-                    <div className="text-center">
-                        <Dropdown label="Actions" menuItems={actionItemsRow} data={row.original}>
-                            <Button variant="outline" className="cursor-pointer" size="icon">
+                header: isRowActions.headerLabel || 'Actions',
+                cell: ({ row }) => {
+                    let { label } = isRowActions
+                    return <div className="text-center">
+                        <Dropdown label={label || 'Actions'} menuItems={isRowActions?.rowItems} data={row.original}>
+                            <Button className={isRowActions.buttonClassName} variant={isRowActions.buttonVariant} size="icon">
                                 <EllipsisVertical />
                             </Button>
                         </Dropdown>
                     </div>
-                ),
+                },
                 size: 64,
                 enablePinning: true,
-            }
+            }] : [])
         ],
         [fields, columnSizes]
     )
@@ -424,6 +439,8 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             pagination,
             sorting,
             fields,
+            headerFunctions,
+            isRowActions,
             columnVisibility,
             columnPinning,
             rowSelection,
@@ -437,10 +454,12 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             setTotal,
             setPagination,
             setSorting,
+            setIsRowActions,
             setColumnVisibility,
             setColumnPinning,
             setRowSelection,
             setColumnOrder,
+            setHeaderFunctions,
             setColumnSizing,
             handleChange,
             handleSelectData,
@@ -450,13 +469,13 @@ export const DataTable = ({ children, data, total, setTotal, pagination, setPagi
             setFilterData
         },
     }}>
-        <div className="table-parent h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw] mx-auto flex flex-col">
+        <div className={`table-parent ${className} mx-auto flex flex-col`}>
             {children}
         </div>
     </DataTableContext.Provider>
 }
 
-DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
+DataTable.TopHeader = ({ children, className }: { children?: React.ReactNode, className?: string }) => {
 
     const { state: { table, columns, filterData },
         actions: { setFilterData, handleSelectData } } = useDataTableContext()
@@ -713,7 +732,7 @@ DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
     ]
 
     return (
-        <div className={`table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5`}>
+        <div className={`${className} table-header w-full relative flex justify-between items-center h-18 lg:h-16 shrink-0 px-3.5 lg:px-5`}>
             <div className="flex items-center w-full space-x-2.5">
                 {React.Children.map(children, (child) => {
                     if (React.isValidElement<TopHeaderChildProps>(child)) {
@@ -730,8 +749,8 @@ DataTable.TopHeader = ({ children }: { children?: React.ReactNode }) => {
     )
 }
 
-DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
-    return <div className="flex w-full space-x-2.5">
+DataTable.LeftHeader = ({ className, children, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode, className?: string }) => {
+    return <div className={`flex w-full space-x-2.5 ${className}`}>
         {React.Children.map(children, (child) => {
             if (React.isValidElement<TopHeaderChildProps>(child)) {
                 return React.cloneElement(child, {
@@ -745,8 +764,8 @@ DataTable.LeftHeader = ({ children, filterItems, actionItemsHeader, actionSubIte
     </div >
 }
 
-DataTable.RightHeader = ({ children, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode }) => {
-    return <div className="flex w-full space-x-2.5">
+DataTable.RightHeader = ({ children, className, filterItems, actionItemsHeader, actionSubItemsHeader }: TopHeaderChildProps & { children: React.ReactNode, className?: string }) => {
+    return <div className={`${className} flex w-full space-x-2.5`}>
         {React.Children.map(children, (child) => {
             if (React.isValidElement<TopHeaderChildProps>(child)) {
                 return React.cloneElement(child, {
@@ -760,15 +779,13 @@ DataTable.RightHeader = ({ children, filterItems, actionItemsHeader, actionSubIt
     </div >
 }
 
-DataTable.Search = () => {
-    const { state: { pagination, globalFilter }, actions: { setGlobalFilter } } = useDataTableContext()
-    return <div className="flex items-center space-x-2.5">
-        <p className='w-20'>Page No: {Number(pagination?.pageIndex) + 1}</p>
-        <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className="h-9 w-48 bg-slate-400! placeholder:text-white focus:bg-slate-500! text-white rounded-lg outline-none! p-2.5" />
-    </div>
+DataTable.Search = ({className}:{className?: string}) => {
+    const { state: { globalFilter }, actions: { setGlobalFilter } } = useDataTableContext()
+    return <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className={className} />
 }
 
-DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, headerItems, filterItems }: Item & { headerItems?: MenuItem[] } & TopHeaderChildProps) => {
+DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, actionItemsHeader, headerItems, filterItems }: 
+    Item & { headerItems?: MenuItem[], className?: string, variant?: ButtonProps["variant"] } & TopHeaderChildProps) => {
 
     const { state: { filterData }, actions: { handleDragEndMenu } } = useDataTableContext()
 
@@ -783,7 +800,7 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
                 filterData={filterData}
                 handleDragEnd={handleDragEndMenu}
             >
-                <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                <Button variant={variant} className={className}>
                     {Icon && <Icon />}
                 </Button>
             </Dropdown>
@@ -795,7 +812,7 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
                     label={label || ""}
                     menuItems={filterItems}
                 >
-                    <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                    <Button variant={variant} className={className}>
                         {Icon && <Icon />}
                     </Button>
                 </Dropdown>
@@ -821,11 +838,11 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
             ];
 
             return (
-            <Dropdown
+                <Dropdown
                     label={label || ""}
                     menuItems={combinedArray?.filter(comArr => comArr.required !== false)}
                 >
-                    <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+                    <Button variant={variant} className={`${className} cursor-pointer `}>
                         {Icon && <Icon />}
                     </Button>
                 </Dropdown>
@@ -838,7 +855,7 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
     //     if (selectType === 'row') {
     //         return (
     //             <Button
-    //                 variant="outline"
+    //                 
     //                 onClick={handleSelectData}
     //                 className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
     //             >
@@ -854,7 +871,7 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
     //                 select={true}
     //                 menuItems={actionSubItemsHeader}
     //             >
-    //                 <Button variant="outline" className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
+    //                 <Button className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white">
     //                     {Icon && <Icon />}
     //                 </Button>
     //             </Dropdown>
@@ -865,9 +882,9 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
     if (type === 'action') {
         return (
             <Button
-                variant="outline"
+                variant={variant} 
                 onClick={onClick}
-                className="hidden md:flex bg-slate-400! hover:bg-slate-500! text-white"
+                className={className}
             >
                 {label}
                 {Icon && <Icon />}
@@ -878,11 +895,7 @@ DataTable.Button = ({ label, type, menuType, icon, onClick, actionItemsHeader, h
     return null
 }
 
-DataTable.PopUp = ({ children }: { children: ReactNode }) => {
-    return { children }
-}
-
-DataTable.Body = ({ children }: { children?: ReactNode }) => {
+DataTable.Body = ({ children, className }: { children?: ReactNode, className?: string }) => {
 
     let { state: { table, filterData, sensors }, actions: { handleResetFilters, handleDragEnd } } = useDataTableContext()
 
@@ -936,17 +949,17 @@ DataTable.Body = ({ children }: { children?: ReactNode }) => {
             onDragEnd={handleDragEnd}
             sensors={sensors}
         >
-            <div className="table-wrapper flex-1 flex overflow-auto 
-  scrollbar-none -ms-overflow-style-none scroll-hide relative bg-white shadow-lg">
+            <div className={`table-wrapper flex-1 flex overflow-auto 
+  scrollbar-none -ms-overflow-style-none scroll-hide relative bg-white shadow-lg ${className}`}>
                 <Table className="border-collapse h-full w-full">
                     {children}
                 </Table>
                 {table.getSelectedRowModel().rows.length > 0 && <div className="fixed left-[50%] bottom-30 -translate-x-[50%] z-30 flex bg-white p-2 shadow-lg rounded-lg space-x-2">
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={() => handleResetFilters()} variant="outline">Clear Selection</Button>
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" variant="outline">
+                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={() => handleResetFilters()} >Clear Selection</Button>
+                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" >
                         <Download />
                     </Button>
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" variant="outline">
+                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" >
                         <Trash />
                     </Button>
                 </div>}
@@ -955,10 +968,14 @@ DataTable.Body = ({ children }: { children?: ReactNode }) => {
     )
 }
 
-DataTable.Header = () => {
-    let { state: { table, columnOrder } } = useDataTableContext();
+DataTable.Header = ({ headerFunctions, className }: { headerFunctions: HeaderFunctionType, className?: string }) => {
+    let { state: { table, columnOrder }, actions: { setHeaderFunctions } } = useDataTableContext();
 
-    return <TableHeader className="bg-white z-10 h-14">
+    useEffect(() => {
+        setHeaderFunctions(headerFunctions)
+    }, [])
+
+    return <TableHeader className={`z-10 h-14`}>
         {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
                 <SortableContext
@@ -966,7 +983,7 @@ DataTable.Header = () => {
                     strategy={horizontalListSortingStrategy}
                 >
                     {headerGroup.headers.map(header => (
-                        <DraggableTableHeader table={table} key={header.id} header={header} />
+                        <DraggableTableHeader className={className || ''} table={table} key={header.id} header={header} />
                     ))}
                 </SortableContext>
             </TableRow>
@@ -974,8 +991,14 @@ DataTable.Header = () => {
     </TableHeader>
 }
 
-DataTable.Rows = () => {
-    const { state: { table, columnOrder } } = useDataTableContext()
+DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, className?: string }) => {
+    const { state: { table, columnOrder }, actions: { setIsRowActions } } = useDataTableContext()
+
+    useEffect(() => {
+        if (isRowActions) {
+            setIsRowActions(isRowActions)
+        }
+    }, [])
     return <TableBody>
         {table.getRowModel().rows.map(row => (
             <TableRow key={row.id}>
@@ -985,7 +1008,7 @@ DataTable.Rows = () => {
                         items={columnOrder}
                         strategy={horizontalListSortingStrategy}
                     >
-                        <DragAlongCell cell={cell} />
+                        <DragAlongCell className={className} cell={cell} />
                     </SortableContext>
                 ))}
             </TableRow>
@@ -993,8 +1016,8 @@ DataTable.Rows = () => {
     </TableBody>
 }
 
-DataTable.Paginations = ({ extendedPaginations = false }:
-    { extendedPaginations?: Boolean }) => {
+DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant }:
+    { extendedPaginations?: Boolean, className?: string, buttonClassName?: string, buttonVariant?: ButtonProps["variant"] }) => {
 
     const { state: { table, total, pagination }, actions: { setPagination } } = useDataTableContext()
 
@@ -1003,47 +1026,47 @@ DataTable.Paginations = ({ extendedPaginations = false }:
     let paginationLists: ReactNode[] = []
 
     for (let i = 1; i < paginationLength + 1; i++) {
-        let button = <Button variant={'outline'} disabled={pagination?.pageIndex === i} onClick={() => { setPagination({ ...pagination, pageIndex: i }) }} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none">
+        let button = <Button variant={buttonVariant} disabled={pagination?.pageIndex === i} onClick={() => { setPagination({ ...pagination, pageIndex: i }) }}>
             {i}
         </Button>
         paginationLists = [...paginationLists, button]
     }
 
     paginationLists = [...paginationLists.slice(pagination?.pageIndex === 1 ? pagination?.pageIndex - 1 : pagination?.pageIndex - 2, pagination?.pageIndex + 2),
-    <Button variant={'outline'} disabled className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none">
-        {'***'}
+    <Button variant={buttonVariant} disabled className={buttonClassName}>
+        {'**'}
     </Button>,
     paginationLists[paginationLists.length - 1]]
 
-    return <div className="btn-group flex items-center space-x-2.5">
-        {extendedPaginations && <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
+    return <div className={`btn-group flex items-center space-x-2.5 ${className}`}>
+        {extendedPaginations && <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
             <ChevronsLeft />
         </Button>}
-        <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+        <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
             <ChevronLeft />
         </Button>
         {...paginationLists}
-        <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+        <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
             <ChevronRight />
         </Button>
-        {extendedPaginations && <Button variant={'outline'} className="h-7 w-7 lg:h-9 lg:w-12 bg-slate-400! focus:ring-0 active:ring-0 hover:bg-slate-500! text-white hover:text-white cursor-pointer outline-none active:outline-none focus:outline-none" disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}>
+        {extendedPaginations && <Button variant={buttonVariant} className={className} disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}>
             <ChevronsRight />
         </Button>}
     </div>
 }
 
-DataTable.PerPage = () => {
+DataTable.PerPage = ({className}:{className?: string}) => {
     const { state: { pagination }, actions: { handleChange } } = useDataTableContext()
 
-    return <div className="per-page flex flex-col lg:flex-row items-center space-y-1.5 space-x-0 lg:space-y-0 lg:space-x-2.5">
+    return <div className={`${className} per-page flex flex-col lg:flex-row items-center space-y-1.5 space-x-0 lg:space-y-0 lg:space-x-2.5`}>
         <span>Per Page: </span>
-        <Input value={pagination?.pageSize} onChange={handleChange} className="scroll-hide h-7 lg:h-9 w-15 lg:w-20 outline-none bg-slate-400 focus:bg-slate-400 rounded-md text-white px-3" />
+        <Input value={pagination?.pageSize} onChange={handleChange} className="scroll-hide h-7 lg:h-9 w-15 lg:w-20" />
     </div>
 }
 
-DataTable.Footer = ({ children }: { children: ReactNode }) => {
+DataTable.Footer = ({ children, className }: { children: ReactNode, className?: string }) => {
     return (
-        <div className="table-footer flex items-center justify-around lg:justify-evenly h-20 lg:h-16 shrink-0 ">
+        <div className={`${className} table-footer flex items-center justify-around lg:justify-evenly h-20 lg:h-16 shrink-0`}>
             {children}
         </div>
     )
