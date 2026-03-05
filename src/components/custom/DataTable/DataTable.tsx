@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CSS } from '@dnd-kit/utilities';
 import { getFilterData, getFilterType, getPinnedColumnStyle } from './utils.ts';
 import type { Item } from '@/lib/types.ts';
+import type { DataTableColumnMeta } from './types.ts';
 
 const MIN_COL_WIDTH = 200;
 
@@ -27,7 +28,17 @@ export const useDataTableContext = () => {
     return ctx
 }
 
-const DragAlongCell = ({ cell, className }: { cell: Cell<Data, unknown>, className?: string }) => {
+const DragAlongCell = ({
+    cell,
+    className,
+    colSpan = 1,
+    rowSpan = 1,
+}: {
+    cell: Cell<Data, unknown>;
+    className?: string;
+    colSpan?: number;
+    rowSpan?: number;
+}) => {
     const { isDragging, setNodeRef, transform } = useSortable({
         id: cell.column.id,
     })
@@ -37,11 +48,6 @@ const DragAlongCell = ({ cell, className }: { cell: Cell<Data, unknown>, classNa
     const nextCol = cell.row.getVisibleCells()[cell.row.getVisibleCells().indexOf(cell) + 1]?.column
     const nextIsPinnedLeft = nextCol?.getIsPinned?.() === "left"
     const isLastLeftPinned = isPinnedLeft && !nextIsPinnedLeft
-
-    // const isPinnedRight = cell.column.getIsPinned?.() === "right"
-    // const prevCol = cell.row.getVisibleCells()[cell.row.getVisibleCells().indexOf(cell) - 1]?.column
-    // const prevIsPinnedRight = prevCol?.getIsPinned?.() === "right"
-    // const isLastRightPinned = isPinnedRight && !prevIsPinnedRight
 
     const style: CSSProperties = {
         ...pinnedStyle,
@@ -56,6 +62,8 @@ const DragAlongCell = ({ cell, className }: { cell: Cell<Data, unknown>, classNa
         <TableCell
             ref={setNodeRef}
             key={cell.id}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
             style={style}
             className={`px-2 py-1 ${className}`}
         >
@@ -63,17 +71,14 @@ const DragAlongCell = ({ cell, className }: { cell: Cell<Data, unknown>, classNa
             {isLastLeftPinned && (
                 <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned-left" />
             )}
-            {/* {isLastRightPinned && (
-                <div className="absolute top-0 h-full w-full pointer-events-none shadow-pinned-right" />
-            )} */}
         </TableCell>
     )
 }
 
 const DraggableTableHeader = ({
-    table, header, className
+    table, header, className, colSpan = 1, rowSpan = 1
 }: {
-    table: TableT<Data>, header: Header<Data, unknown>, className: string
+    table: TableT<Data>, header: Header<Data, unknown>, className: string, colSpan?: number, rowSpan?: number
 }) => {
     const { attributes, isDragging, listeners, setNodeRef, transform } =
         useSortable({
@@ -110,6 +115,8 @@ const DraggableTableHeader = ({
         <TableHead
             ref={setNodeRef}
             key={header.id}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
             style={{ minWidth: header.getSize(), ...style }}
             className={`px-2 pb-2 text-left ${className}`}
         >
@@ -183,11 +190,13 @@ const DraggableTableHeader = ({
 }
 
 export const DataTable = ({ children, className, data, total,
-     setTotal, pagination, setPagination }:
+     setTotal, pagination, setPagination, columnMeta }:
     {
         children: ReactNode, className: string, data: Data[], setData: StateSetter<Data[]>,
         pagination?: Pagination, setPagination?: StateSetter<Pagination>,
-        total?: number, setTotal?: StateSetter<number>
+        total?: number, setTotal?: StateSetter<number>,
+        /** Per-column meta for header/cell rowSpan and colSpan (key = column id) */
+        columnMeta?: Record<string, DataTableColumnMeta>
     }
 ) => {
 
@@ -262,9 +271,7 @@ export const DataTable = ({ children, className, data, total,
                 ),
                 enablePinning: true
             },
-            ...fields.map(field => (
-                {
-
+            ...fields.map(field => ({
                     id: field,
                     accessorKey: field,
                     filterFn: (row: Row<Data>, id: string, value: any) => {
@@ -298,11 +305,13 @@ export const DataTable = ({ children, className, data, total,
                         return true
                     },
                     ceil: field.charAt(0).toUpperCase() + field.slice(1),
-                    header: field.charAt(0).toUpperCase() + field.slice(1),
+                    header: columnMeta?.[field]?.header ?? (field.charAt(0).toUpperCase() + field.slice(1)),
+                    cell: columnMeta?.[field]?.cell ?? (({ getValue }) => getValue() ?? null),
                     size: columnSizes[field] || MIN_COL_WIDTH,
                     minSize: 100,
                     maxSize: 400,
                     enablePinning: true,
+                    ...(columnMeta?.[field] && { meta: columnMeta[field] }),
                 }
             )),
             ...(isRowActions ? [{
@@ -322,7 +331,7 @@ export const DataTable = ({ children, className, data, total,
                 enablePinning: true,
             }] : [])
         ],
-        [fields, columnSizes]
+        [fields, columnSizes, columnMeta]
     )
 
     let table = useReactTable({
@@ -976,18 +985,37 @@ DataTable.Header = ({ headerFunctions, className }: { headerFunctions: HeaderFun
     }, [])
 
     return <TableHeader className={`z-10 h-14`}>
-        {table.getHeaderGroups().map(headerGroup => (
-            <TableRow key={headerGroup.id}>
-                <SortableContext
-                    items={columnOrder}
-                    strategy={horizontalListSortingStrategy}
-                >
-                    {headerGroup.headers.map(header => (
-                        <DraggableTableHeader className={className || ''} table={table} key={header.id} header={header} />
-                    ))}
-                </SortableContext>
-            </TableRow>
-        ))}
+        {table.getHeaderGroups().map(headerGroup => {
+            const headers: React.ReactNode[] = [];
+            let i = 0;
+            while (i < headerGroup.headers.length) {
+                const header = headerGroup.headers[i];
+                const meta = header.column.columnDef.meta as DataTableColumnMeta | undefined;
+                const headerColSpan = meta?.headerColSpan ?? 1;
+                const headerRowSpan = meta?.headerRowSpan ?? 1;
+                headers.push(
+                    <DraggableTableHeader
+                        key={header.id}
+                        className={className || ''}
+                        table={table}
+                        header={header}
+                        colSpan={headerColSpan}
+                        rowSpan={headerRowSpan}
+                    />
+                );
+                i += headerColSpan;
+            }
+            return (
+                <TableRow key={headerGroup.id}>
+                    <SortableContext
+                        items={columnOrder}
+                        strategy={horizontalListSortingStrategy}
+                    >
+                        {headers}
+                    </SortableContext>
+                </TableRow>
+            );
+        })}
     </TableHeader>
 }
 
@@ -999,21 +1027,51 @@ DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, c
             setIsRowActions(isRowActions)
         }
     }, [])
-    return <TableBody>
-        {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id}>
-                {row.getVisibleCells().map(cell => (
-                    <SortableContext
-                        key={cell.id}
-                        items={columnOrder}
-                        strategy={horizontalListSortingStrategy}
-                    >
-                        <DragAlongCell className={className} cell={cell} />
-                    </SortableContext>
-                ))}
-            </TableRow>
-        ))}
-    </TableBody>
+
+    return (
+        <TableBody>
+            {table.getRowModel().rows.map(row => {
+                const cells: React.ReactNode[] = [];
+                const visibleCells = row.getVisibleCells();
+                let i = 0;
+                while (i < visibleCells.length) {
+                    const cell = visibleCells[i];
+                    const meta = cell.column.columnDef.meta as DataTableColumnMeta | undefined;
+                    let colSpan = meta?.cellColSpan ?? 1;
+                    let rowSpan = meta?.cellRowSpan ?? 1;
+                    if (meta?.getCellSpan) {
+                        const span = meta.getCellSpan(row);
+                        if (span.colSpan != null) colSpan = span.colSpan;
+                        if (span.rowSpan != null) rowSpan = span.rowSpan;
+                    }
+                    if (rowSpan === 0) {
+                        i += 1;
+                        continue;
+                    }
+                    cells.push(
+                        <SortableContext
+                            key={cell.id}
+                            items={columnOrder}
+                            strategy={horizontalListSortingStrategy}
+                        >
+                            <DragAlongCell
+                                className={className}
+                                cell={cell}
+                                colSpan={colSpan}
+                                rowSpan={rowSpan}
+                            />
+                        </SortableContext>
+                    );
+                    i += colSpan;
+                }
+                return (
+                    <TableRow key={row.id}>
+                        {cells}
+                    </TableRow>
+                );
+            })}
+        </TableBody>
+    );
 }
 
 DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant }:

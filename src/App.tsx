@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import './App.css'
-import { getData } from './lib/utils'
 import type { Data } from './lib/types'
 import { DataTable } from './components/custom/DataTable'
 import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download } from 'lucide-react'
-import { getMappedData } from './components/custom/DataTable/utils'
-import type { Pagination } from './components/custom/DataTable/types'
+import type { DataTableColumnMeta, Pagination } from './components/custom/DataTable/types'
+
+const CUSTOM_DATA: Data[] = [
+  { id: 1, firstName: 'Alice', lastName: 'ABC', age: 28, email: 'alice@example.com' },
+  { id: 2, firstName: 'Bob', lastName: 'ABC', age: 34, email: 'bob@example.com' },
+  { id: 3, firstName: 'Carol', lastName: 'ABC', age: 22, email: 'carol@example.com' },
+  { id: 4, firstName: 'David', lastName: 'ABC', age: 45, email: 'david@example.com' },
+  { id: 5, firstName: 'Eve', lastName: 'ABC', age: 31, email: 'eve@example.com' },
+]
 
 function App() {
 
@@ -14,27 +20,43 @@ function App() {
     pageSize: 10
   })
 
-  const [total, setTotal] = useState(0)
-
-  let url = `https://dummyjson.com/users?skip=${(pagination.pageIndex - 1) * pagination.pageSize}&limit=${pagination.pageSize}`
-
-  // let url = `https://jsonplaceholder.typicode.com/todos?_limit=100`
-
   const [data, setData] = useState<Data[]>([])
 
-  const handleData = async (url: string) => {
-    let response = await getData(url)
-    let mappedData = getMappedData(response.users)
+  const [total, setTotal] = useState(0)
 
-    if (response.total) {
-      setTotal(response.total)
-    }
-    setData(mappedData)
+  const loadCustomData = () => {
+    setData(CUSTOM_DATA)
+    setTotal(CUSTOM_DATA.length)
   }
 
-  useEffect(() => {
-    handleData(url)
-  }, [pagination.pageSize, pagination.pageIndex])
+  // const columnMeta: Record<string, DataTableColumnMeta> = {
+  //   email: {
+  //     getCellSpan: (row) => {
+  //       const r = row.original as any
+  //       // if (row.index === 0) return { rowSpan: 1 }
+  //       // if (row.index === 1) return { rowSpan: 1 } 
+  //       return {}
+  //     },
+  //   },
+  // }
+
+  // const columnMeta: Record<string, DataTableColumnMeta> = {
+  //   firstName: {
+  //     cell: ({ row }) => {
+  //       const { firstName, lastName } = row.original as any
+  //       return `${firstName} ${lastName}`
+  //     },
+  //     cellColSpan: 3,          // this <td> covers firstName + lastName
+  //   },
+  // }
+
+  const columnMeta: Record<string, DataTableColumnMeta> = {
+    id: {
+      header: () => 'ID',
+      headerColSpan: 1,        // this <th> covers firstName + lastName
+    }
+    // lastName will be “consumed” by the span above in the header row
+  }
 
   return (
     <div className="h-svh w-svw bg-slate-50 flex justify-center items-center">
@@ -46,12 +68,13 @@ function App() {
         setTotal={setTotal}
         pagination={pagination}
         setPagination={setPagination}
+        columnMeta={columnMeta}
         className='h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw]'
       >
         {/* TOP HEADER */}
         <DataTable.TopHeader>
           <DataTable.LeftHeader className='justify-start'>
-            <DataTable.Search className='w-50'/>
+            <DataTable.Search className='w-50' />
             <DataTable.Button variant={'outline'} id='filter-data' type='menu' menuType={'filter'} label='Filter' icon={Funnel} />
             <DataTable.Button variant={'outline'} id='priority-data' type='menu' menuType={'priority'} label='Priority' icon={ArrowUpDown} />
           </DataTable.LeftHeader>
@@ -63,6 +86,7 @@ function App() {
                 { id: 'views-data', type: 'filter', builtIn: true, required: true, label: 'Views Datas', icon: SlidersVertical },
                 { id: 'download-data', type: 'actions', builtIn: false, label: 'Download', icon: Download }
               ]} />
+            <DataTable.Button variant={'outline'} id='load-custom-data' type='action' label='Load custom data' onClick={loadCustomData} />
             <DataTable.Button variant={'outline'} id='create-data' type='action' label='Create Data' />
           </DataTable.RightHeader>
         </DataTable.TopHeader>
@@ -90,8 +114,8 @@ function App() {
 
         {/* FOOTER */}
         <DataTable.Footer>
-          <DataTable.Paginations buttonVariant={'outline'} extendedPaginations={true}/>
-          <DataTable.PerPage/>
+          <DataTable.Paginations buttonVariant={'outline'} extendedPaginations={true} />
+          <DataTable.PerPage />
         </DataTable.Footer>
         {/* FOOTER */}
 

@@ -1,8 +1,24 @@
 import type { Button } from "@/components/ui/button";
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core"
-import type { ColumnDef, ColumnPinningState, SortingState, Table, VisibilityState } from "@tanstack/react-table"
+import type { ColumnDef, ColumnPinningState, Row, SortingState, Table, VisibilityState } from "@tanstack/react-table"
 import type { LucideIcon } from "lucide-react";
 import type { HTMLProps } from "react";
+
+/** Optional meta for column def: custom header/cell and span (rowSpan, colSpan) */
+export type DataTableColumnMeta = {
+  headerColSpan?: number;
+  headerRowSpan?: number;
+  /** Fixed colSpan for every cell in this column */
+  cellColSpan?: number;
+  /** Fixed rowSpan for every cell in this column */
+  cellRowSpan?: number;
+  /** Dynamic span per row; return rowSpan: 0 to hide cell (covered by a rowSpan above) */
+  getCellSpan?: (row: Row<Data>) => { rowSpan?: number; colSpan?: number };
+  /** Custom header render (overrides default header for this column) */
+  header?: ColumnDef<Data>['header'];
+  /** Custom cell render (overrides default cell for this column) */
+  cell?: ColumnDef<Data>['cell'];
+};
 
 export type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
 export type Data = Record<string, unknown>;
