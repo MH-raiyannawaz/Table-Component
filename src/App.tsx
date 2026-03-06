@@ -1,43 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import type { Data } from './lib/types'
-import { DataTable } from './components/custom/DataTable'
+import { DataTable, expandRowsForMultiValue } from './components/custom/DataTable'
 import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download } from 'lucide-react'
-import type { DataTableColumnMeta, Pagination } from './components/custom/DataTable/types'
-
-const CUSTOM_DATA: Data[] = [
-  { id: 1, firstName: 'Alice', lastName: 'ABC', age: 28, email: 'alice@example.com' },
-  { id: 2, firstName: 'Bob', lastName: 'ABC', age: 34, email: 'bob@example.com' },
-  { id: 3, firstName: 'Carol', lastName: 'ABC', age: 22, email: 'carol@example.com' },
-  { id: 4, firstName: 'David', lastName: 'ABC', age: 45, email: 'david@example.com' },
-  { id: 5, firstName: 'Eve', lastName: 'ABC', age: 31, email: 'eve@example.com' },
-]
+import type { Pagination } from './components/custom/DataTable/types'
 
 function App() {
 
   const [pagination, setPagination] = useState<Pagination>({
-    pageIndex: 1,
+    pageIndex: 0,
     pageSize: 10
   })
 
-  const [data, setData] = useState<Data[]>([])
-
   const [total, setTotal] = useState(0)
 
-  const loadCustomData = () => {
-    setData(CUSTOM_DATA)
-    setTotal(CUSTOM_DATA.length)
-  }
+  const [fullData, setFullData] = useState<Data[]>([])
+
+  // Rows with multiple emails: expand so non-email columns get rowSpan = emails.length; email column shows one per row
+  const CUSTOM_DATA: Data[] = [
+    { id: 1, firstName: 'Alice', lastName: 'Man', age: 28, emails: ['alice@example.com', 'alice.work@example.com', 'alice.other@example.com'] },
+    { id: 2, firstName: 'Bob', lastName: 'Marley', age: 34, emails: ['bob@example.com'] },
+    { id: 3, firstName: 'Carol', lastName: 'Johanson', age: 22, emails: ['carol@example.com', 'carol.backup@example.com'] },
+    { id: 4, firstName: 'David', lastName: 'Moore', age: 45, email: 'david@example.com' },
+    { id: 5, firstName: 'Evan', lastName: 'Larry', age: 31, emails: ['eve@example.com'] },
+  ]
 
   // const columnMeta: Record<string, DataTableColumnMeta> = {
-  //   email: {
-  //     getCellSpan: (row) => {
-  //       const r = row.original as any
-  //       // if (row.index === 0) return { rowSpan: 1 }
-  //       // if (row.index === 1) return { rowSpan: 1 } 
-  //       return {}
-  //     },
-  //   },
+    // firstName: {
+    //   header: () => 'Full name',
+    //   headerColSpan: 2,        // this <th> covers firstName + lastName
+    // },
+    // lastName will be “consumed” by the span above in the header row
   // }
 
   // const columnMeta: Record<string, DataTableColumnMeta> = {
@@ -46,29 +39,45 @@ function App() {
   //       const { firstName, lastName } = row.original as any
   //       return `${firstName} ${lastName}`
   //     },
-  //     cellColSpan: 3,          // this <td> covers firstName + lastName
+  //     cellColSpan: 2,          // this <td> covers firstName + lastName
   //   },
   // }
 
-  const columnMeta: Record<string, DataTableColumnMeta> = {
-    id: {
-      header: () => 'ID',
-      headerColSpan: 1,        // this <th> covers firstName + lastName
+  useEffect(() => {
+    const expanded = expandRowsForMultiValue(CUSTOM_DATA, 'emails')
+    setFullData(expanded)
+    setTotal(expanded.length)
+  }, [])
+
+  const pageCount = useMemo(
+    () => Math.max(1, Math.ceil(total / Math.max(1, pagination.pageSize))),
+    [total, pagination.pageSize]
+  )
+
+  const data = useMemo(() => {
+    const size = Math.max(1, pagination.pageSize)
+    const safeIndex = Math.min(Math.max(0, pagination.pageIndex), pageCount - 1)
+    const start = safeIndex * size
+    return fullData.slice(start, start + size)
+  }, [fullData, pagination.pageIndex, pagination.pageSize, pageCount])
+
+  useEffect(() => {
+    if (pagination.pageIndex >= pageCount) {
+      setPagination((p) => ({ ...p, pageIndex: Math.max(0, pageCount - 1) }))
     }
-    // lastName will be “consumed” by the span above in the header row
-  }
+  }, [pageCount, pagination.pageIndex, setPagination])
 
   return (
     <div className="h-svh w-svw bg-slate-50 flex justify-center items-center">
       {/* DATATABLE */}
       <DataTable
         data={data}
-        setData={setData}
+        setData={setFullData}
         total={total}
         setTotal={setTotal}
         pagination={pagination}
         setPagination={setPagination}
-        columnMeta={columnMeta}
+        multiValueColumnId='email'
         className='h-[92.5svh] lg:h-[90svh] w-[90svw] lg:w-[85svw]'
       >
         {/* TOP HEADER */}
@@ -86,7 +95,6 @@ function App() {
                 { id: 'views-data', type: 'filter', builtIn: true, required: true, label: 'Views Datas', icon: SlidersVertical },
                 { id: 'download-data', type: 'actions', builtIn: false, label: 'Download', icon: Download }
               ]} />
-            <DataTable.Button variant={'outline'} id='load-custom-data' type='action' label='Load custom data' onClick={loadCustomData} />
             <DataTable.Button variant={'outline'} id='create-data' type='action' label='Create Data' />
           </DataTable.RightHeader>
         </DataTable.TopHeader>

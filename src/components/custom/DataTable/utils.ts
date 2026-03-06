@@ -26,6 +26,49 @@ export const getMappedData = (data: Data[]) => {
   )
 }
 
+/** Row shape when expanded for multi-value column (internal) */
+export type ExpandedRow = Data & { __physicalIndex__?: number; __groupSize__?: number }
+
+/**
+ * Expands rows so that when a row has multiple emails (e.g. emails: string[]),
+ * it becomes N physical rows. Non-email columns get rowSpan=N; email column shows one value per row.
+ * @param data - Rows that may have `emails: string[]` or `email: string`
+ * @param multiValueKey - Key for the array of values (e.g. 'emails'). Single-value key will be 'email'.
+ */
+export function expandRowsForMultiValue (
+  data: Data[],
+  multiValueKey: string = 'emails'
+): ExpandedRow[] {
+  const singleKey = multiValueKey.endsWith('s') ? multiValueKey.slice(0, -1) : multiValueKey + 'Value'
+  const result: ExpandedRow[] = []
+  for (const row of data) {
+    let raw = row[multiValueKey]
+    if (raw == null && row[singleKey] != null) raw = row[singleKey]
+    const arr = Array.isArray(raw) ? raw : raw != null ? [raw] : []
+    if (arr.length > 1) {
+      const rest = { ...row } as Record<string, unknown>
+      delete rest[multiValueKey]
+      for (let i = 0; i < arr.length; i++) {
+        result.push({
+          ...rest,
+          [singleKey]: arr[i],
+          __physicalIndex__: i,
+          __groupSize__: arr.length,
+        } as ExpandedRow)
+      }
+    } else {
+      const single = arr[0]
+      const rest = { ...row } as Record<string, unknown>
+      delete rest[multiValueKey]
+      result.push({
+        ...rest,
+        [singleKey]: single,
+      } as ExpandedRow)
+    }
+  }
+  return result
+}
+
 export const getFilterType = (dataType: any): FilterType => {
 
   const isDateType =

@@ -190,13 +190,15 @@ const DraggableTableHeader = ({
 }
 
 export const DataTable = ({ children, className, data, total,
-     setTotal, pagination, setPagination, columnMeta }:
+     setTotal, pagination, setPagination, columnMeta, multiValueColumnId = 'email' }:
     {
         children: ReactNode, className: string, data: Data[], setData: StateSetter<Data[]>,
         pagination?: Pagination, setPagination?: StateSetter<Pagination>,
         total?: number, setTotal?: StateSetter<number>,
         /** Per-column meta for header/cell rowSpan and colSpan (key = column id) */
-        columnMeta?: Record<string, DataTableColumnMeta>
+        columnMeta?: Record<string, DataTableColumnMeta>,
+        /** Column id that has one value per physical row when rows are expanded for multi-value (e.g. emails). Others get rowSpan. */
+        multiValueColumnId?: string
     }
 ) => {
 
@@ -232,7 +234,9 @@ export const DataTable = ({ children, className, data, total,
         draggable: false,
     })
 
-    const fields = useMemo(() => data.length > 0 ? Object.keys(data[0]) : [], [data])
+    const fields = useMemo(() => data.length > 0
+        ? Object.keys(data[0]).filter((k) => !String(k).startsWith('__'))
+        : [], [data])
 
     const columnSizes = useMemo(() => {
         const sizes: Record<string, number> = {}
@@ -343,7 +347,7 @@ export const DataTable = ({ children, className, data, total,
             columnOrder, columnSizing
         },
         manualPagination: true,
-        pageCount: Math.ceil((total ?? 0) / (pagination?.pageSize ?? 0)),
+        pageCount: Math.max(1, Math.ceil((total ?? 0) / Math.max(1, pagination?.pageSize ?? 10))),
         enableRowSelection: true,
         enableColumnPinning: true,
         enableColumnResizing: true,
@@ -365,8 +369,9 @@ export const DataTable = ({ children, className, data, total,
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (setPagination && pagination) {
-            if (!isNaN(parseInt(e.target.value)) && parseInt(e.target.value) >= 0) {
-                setPagination({ ...pagination, pageSize: parseInt(e.target.value) })
+            const nextSize = parseInt(e.target.value, 10)
+            if (!isNaN(nextSize) && nextSize >= 1) {
+                setPagination({ ...pagination, pageSize: nextSize, pageIndex: 0 })
             }
         }
     }
@@ -449,6 +454,7 @@ export const DataTable = ({ children, className, data, total,
             sorting,
             fields,
             headerFunctions,
+            multiValueColumnId,
             isRowActions,
             columnVisibility,
             columnPinning,
@@ -1020,7 +1026,7 @@ DataTable.Header = ({ headerFunctions, className }: { headerFunctions: HeaderFun
 }
 
 DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, className?: string }) => {
-    const { state: { table, columnOrder }, actions: { setIsRowActions } } = useDataTableContext()
+    const { state: { table, columnOrder, multiValueColumnId = 'email' }, actions: { setIsRowActions } } = useDataTableContext()
 
     useEffect(() => {
         if (isRowActions) {
@@ -1033,6 +1039,11 @@ DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, c
             {table.getRowModel().rows.map(row => {
                 const cells: React.ReactNode[] = [];
                 const visibleCells = row.getVisibleCells();
+                const raw = row.original as Record<string, unknown>;
+                const groupSize = raw.__groupSize__ as number | undefined;
+                const physicalIndex = raw.__physicalIndex__ as number | undefined;
+                const useMultiValueRowSpan = groupSize != null && physicalIndex != null;
+
                 let i = 0;
                 while (i < visibleCells.length) {
                     const cell = visibleCells[i];
@@ -1043,6 +1054,8 @@ DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, c
                         const span = meta.getCellSpan(row);
                         if (span.colSpan != null) colSpan = span.colSpan;
                         if (span.rowSpan != null) rowSpan = span.rowSpan;
+                    } else if (useMultiValueRowSpan && cell.column.id !== multiValueColumnId) {
+                        rowSpan = physicalIndex === 0 ? groupSize : 0;
                     }
                     if (rowSpan === 0) {
                         i += 1;
@@ -1074,43 +1087,67 @@ DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, c
     );
 }
 
-DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant }:
-    { extendedPaginations?: Boolean, className?: string, buttonClassName?: string, buttonVariant?: ButtonProps["variant"] }) => {
+DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant, maxVisiblePages = 5, showRowRange = true }:
+    { extendedPaginations?: boolean; className?: string; buttonClassName?: string; buttonVariant?: ButtonProps["variant"]; maxVisiblePages?: number; showRowRange?: boolean }) => {
 
     const { state: { table, total, pagination }, actions: { setPagination } } = useDataTableContext()
 
-    const paginationLength = total && pagination ? Math.round(total / pagination?.pageSize) : 0
+    const pageSize = Math.max(1, pagination?.pageSize ?? 10)
+    const totalRows = total ?? 0
+    const pageCount = totalRows > 0 ? Math.ceil(totalRows / pageSize) : 1
+    const currentPage = Math.min(pagination?.pageIndex ?? 0, pageCount - 1)
+    const startRow = totalRows === 0 ? 0 : currentPage * pageSize + 1
+    const endRow = Math.min((currentPage + 1) * pageSize, totalRows)
 
-    let paginationLists: ReactNode[] = []
+    const visiblePageIndices: number[] = (() => {
+        if (pageCount <= maxVisiblePages) {
+            return Array.from({ length: pageCount }, (_, i) => i)
+        }
+        const half = Math.floor(maxVisiblePages / 2)
+        let start = Math.max(0, currentPage - half)
+        let end = Math.min(pageCount, start + maxVisiblePages)
+        if (end - start < maxVisiblePages) start = Math.max(0, end - maxVisiblePages)
+        return Array.from({ length: end - start }, (_, i) => start + i)
+    })()
 
-    for (let i = 1; i < paginationLength + 1; i++) {
-        let button = <Button variant={buttonVariant} disabled={pagination?.pageIndex === i} onClick={() => { setPagination({ ...pagination, pageIndex: i }) }}>
-            {i}
-        </Button>
-        paginationLists = [...paginationLists, button]
-    }
-
-    paginationLists = [...paginationLists.slice(pagination?.pageIndex === 1 ? pagination?.pageIndex - 1 : pagination?.pageIndex - 2, pagination?.pageIndex + 2),
-    <Button variant={buttonVariant} disabled className={buttonClassName}>
-        {'**'}
-    </Button>,
-    paginationLists[paginationLists.length - 1]]
-
-    return <div className={`btn-group flex items-center space-x-2.5 ${className}`}>
-        {extendedPaginations && <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}>
-            <ChevronsLeft />
-        </Button>}
-        <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
-            <ChevronLeft />
-        </Button>
-        {...paginationLists}
-        <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
-            <ChevronRight />
-        </Button>
-        {extendedPaginations && <Button variant={buttonVariant} className={className} disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}>
-            <ChevronsRight />
-        </Button>}
-    </div>
+    return (
+        <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+            {showRowRange && (
+                <span className="text-muted-foreground text-sm whitespace-nowrap">
+                    {totalRows === 0 ? '0 rows' : `${startRow}–${endRow} of ${totalRows}`}
+                </span>
+            )}
+            <div className="flex items-center gap-1.5">
+            {extendedPaginations && (
+                <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()} size="icon" className={buttonClassName}>
+                    <ChevronsLeft className="h-4 w-4" />
+                </Button>
+            )}
+            <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()} size="icon" className={buttonClassName}>
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {visiblePageIndices.map((pageIndex) => (
+                <Button
+                    key={pageIndex}
+                    variant={buttonVariant}
+                    size="sm"
+                    disabled={currentPage === pageIndex}
+                    onClick={() => setPagination?.({ ...pagination!, pageIndex })}
+                >
+                    {pageIndex + 1}
+                </Button>
+            ))}
+            <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.nextPage()} size="icon" className={buttonClassName}>
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+            {extendedPaginations && (
+                <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.lastPage()} size="icon" className={buttonClassName}>
+                    <ChevronsRight className="h-4 w-4" />
+                </Button>
+            )}
+            </div>
+        </div>
+    )
 }
 
 DataTable.PerPage = ({className}:{className?: string}) => {

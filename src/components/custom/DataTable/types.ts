@@ -36,6 +36,7 @@ export type IndeterminateCheckboxProps = {
   className?: string
 } & Omit<HTMLProps<HTMLInputElement>, "onChange">
 
+/** Pagination state: pageIndex is 0-based (first page = 0) */
 export type Pagination = {
   pageIndex: number
   pageSize: number
@@ -124,6 +125,8 @@ export type DataTableContextType = {
     sensors: SensorDescriptor<SensorOptions>[],
     filterData: FilterData[], 
     headerFunctions: HeaderFunctionType
+    /** Column id that shows one value per physical row when using multi-value rowSpan (e.g. 'email') */
+    multiValueColumnId?: string
   }
   actions: {
     setData?: StateSetter<Data[]>
