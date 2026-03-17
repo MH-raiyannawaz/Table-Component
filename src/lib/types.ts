@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import type { HTMLProps } from "react";
 
 export type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
+/** Row data: values can be primitives or React nodes (e.g. <Button />, <Input />) for component cells */
 export type Data = Record<string, unknown>;
 
 export type IndeterminateCheckboxProps = {

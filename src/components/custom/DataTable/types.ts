@@ -102,8 +102,8 @@ export type RowActionType = {
   headerLabel?: string,
   icon?: LucideIcon,
   rowItems: MenuItem[],
-  buttonClassName: string,
-  buttonVariant: ButtonProps['variant']
+  buttonClassName?: string,
+  buttonVariant?: ButtonProps['variant']
 }
 
 export type DataTableContextType = {

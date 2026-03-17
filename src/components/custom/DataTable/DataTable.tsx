@@ -234,6 +234,24 @@ export const DataTable = ({ children, className, data, total,
         draggable: false,
     })
 
+    const totalRows = total ?? data.length
+    const pageCount = useMemo(
+        () => Math.max(1, Math.ceil(totalRows / Math.max(1, pagination?.pageSize ?? 10))),
+        [totalRows, pagination?.pageSize]
+    )
+    const paginatedData = useMemo(() => {
+        const size = Math.max(1, pagination?.pageSize ?? 10)
+        const safeIndex = Math.min(Math.max(0, pagination?.pageIndex ?? 0), pageCount - 1)
+        const start = safeIndex * size
+        return data.slice(start, start + size)
+    }, [data, pagination?.pageIndex, pagination?.pageSize, pageCount])
+
+    useEffect(() => {
+        if (setPagination && pagination && pagination.pageIndex >= pageCount) {
+            setPagination((p) => ({ ...p, pageIndex: Math.max(0, pageCount - 1) }))
+        }
+    }, [pageCount, pagination?.pageIndex, setPagination])
+
     const fields = useMemo(() => data.length > 0
         ? Object.keys(data[0]).filter((k) => !String(k).startsWith('__'))
         : [], [data])
@@ -282,6 +300,7 @@ export const DataTable = ({ children, className, data, total,
                         if (!value) return true
 
                         const cellValue = row.getValue(id)
+                        if (typeof cellValue === 'object' && cellValue !== null && !(cellValue instanceof Date)) return true
                         const { labels, dateRange, numberRange } = value
 
                         // labels (string)
@@ -310,7 +329,13 @@ export const DataTable = ({ children, className, data, total,
                     },
                     ceil: field.charAt(0).toUpperCase() + field.slice(1),
                     header: columnMeta?.[field]?.header ?? (field.charAt(0).toUpperCase() + field.slice(1)),
-                    cell: columnMeta?.[field]?.cell ?? (({ getValue }) => getValue() ?? null),
+                    cell: columnMeta?.[field]?.cell ?? (({ getValue, row }) => {
+                        const v = getValue()
+                        if (v == null) return null
+                        if (React.isValidElement(v)) return v
+                        if (typeof v === 'function') return (v as (row: Data) => React.ReactNode)(row.original)
+                        return v
+                    }),
                     size: columnSizes[field] || MIN_COL_WIDTH,
                     minSize: 100,
                     maxSize: 400,
@@ -339,7 +364,8 @@ export const DataTable = ({ children, className, data, total,
     )
 
     let table = useReactTable({
-        data, columns,
+        data: paginatedData,
+        columns,
         state: {
             sorting, pagination,
             globalFilter, rowSelection,
@@ -347,7 +373,7 @@ export const DataTable = ({ children, className, data, total,
             columnOrder, columnSizing
         },
         manualPagination: true,
-        pageCount: Math.max(1, Math.ceil((total ?? 0) / Math.max(1, pagination?.pageSize ?? 10))),
+        pageCount,
         enableRowSelection: true,
         enableColumnPinning: true,
         enableColumnResizing: true,
@@ -445,11 +471,11 @@ export const DataTable = ({ children, className, data, total,
 
     return <DataTableContext.Provider value={{
         state: {
-            data,
+            data: paginatedData,
             table,
             columns,
             globalFilter,
-            total,
+            total: totalRows,
             pagination,
             sorting,
             fields,

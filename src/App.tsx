@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import type { Data } from './lib/types'
 import { DataTable, expandRowsForMultiValue } from './components/custom/DataTable'
 import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download } from 'lucide-react'
 import type { Pagination } from './components/custom/DataTable/types'
+import { Button } from './components/ui/button'
+import { Input } from './components/ui/input'
 
 function App() {
 
@@ -14,15 +16,16 @@ function App() {
 
   const [total, setTotal] = useState(0)
 
-  const [fullData, setFullData] = useState<Data[]>([])
+  const [data, setData] = useState<Data[]>([])
 
   // Rows with multiple emails: expand so non-email columns get rowSpan = emails.length; email column shows one per row
+  // Cell values can be primitives or components (Button, Input, etc.)
   const CUSTOM_DATA: Data[] = [
-    { id: 1, firstName: 'Alice', lastName: 'Man', age: 28, emails: ['alice@example.com', 'alice.work@example.com', 'alice.other@example.com'] },
-    { id: 2, firstName: 'Bob', lastName: 'Marley', age: 34, emails: ['bob@example.com'] },
-    { id: 3, firstName: 'Carol', lastName: 'Johanson', age: 22, emails: ['carol@example.com', 'carol.backup@example.com'] },
-    { id: 4, firstName: 'David', lastName: 'Moore', age: 45, email: 'david@example.com' },
-    { id: 5, firstName: 'Evan', lastName: 'Larry', age: 31, emails: ['eve@example.com'] },
+    { id: 1, firstName: 'Alice', lastName: 'Man', age: 28, emails: ['alice@example.com', 'alice.work@example.com', 'alice.other@example.com'], actionBtn: <Button variant="outline" size="sm" onClick={() => alert('Alice')}>Edit</Button>, notesInput: <Input placeholder="Notes for Alice" className="max-w-32" /> },
+    { id: 2, firstName: 'Bob', lastName: 'Marley', age: 34, emails: ['bob@example.com'], actionBtn: <Button variant="outline" size="sm" onClick={() => alert('Bob')}>Edit</Button>, notesInput: <Input placeholder="Notes for Bob" className="max-w-32" /> },
+    { id: 3, firstName: 'Carol', lastName: 'Johanson', age: 22, emails: ['carol@example.com', 'carol.backup@example.com'], actionBtn: <Button variant="outline" size="sm" onClick={() => alert('Carol')}>Edit</Button>, notesInput: <Input placeholder="Notes for Carol" className="max-w-32" /> },
+    { id: 4, firstName: 'David', lastName: 'Moore', age: 45, email: 'david@example.com', actionBtn: <Button variant="outline" size="sm" onClick={() => alert('David')}>Edit</Button>, notesInput: <Input placeholder="Notes for David" className="max-w-32" /> },
+    { id: 5, firstName: 'Evan', lastName: 'Larry', age: 31, emails: ['eve@example.com'], actionBtn: <Button variant="outline" size="sm" onClick={() => alert('Evan')}>Edit</Button>, notesInput: <Input placeholder="Notes for Evan" className="max-w-32" /> },
   ]
 
   // const columnMeta: Record<string, DataTableColumnMeta> = {
@@ -45,34 +48,16 @@ function App() {
 
   useEffect(() => {
     const expanded = expandRowsForMultiValue(CUSTOM_DATA, 'emails')
-    setFullData(expanded)
+    setData(expanded)
     setTotal(expanded.length)
   }, [])
-
-  const pageCount = useMemo(
-    () => Math.max(1, Math.ceil(total / Math.max(1, pagination.pageSize))),
-    [total, pagination.pageSize]
-  )
-
-  const data = useMemo(() => {
-    const size = Math.max(1, pagination.pageSize)
-    const safeIndex = Math.min(Math.max(0, pagination.pageIndex), pageCount - 1)
-    const start = safeIndex * size
-    return fullData.slice(start, start + size)
-  }, [fullData, pagination.pageIndex, pagination.pageSize, pageCount])
-
-  useEffect(() => {
-    if (pagination.pageIndex >= pageCount) {
-      setPagination((p) => ({ ...p, pageIndex: Math.max(0, pageCount - 1) }))
-    }
-  }, [pageCount, pagination.pageIndex, setPagination])
 
   return (
     <div className="h-svh w-svw bg-slate-50 flex justify-center items-center">
       {/* DATATABLE */}
       <DataTable
         data={data}
-        setData={setFullData}
+        setData={setData}
         total={total}
         setTotal={setTotal}
         pagination={pagination}
