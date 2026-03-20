@@ -27,9 +27,9 @@ export type Item = {
   side?: 'left' | 'right',
   icon?: LucideIcon,
   searchable?: boolean,
-  menuType?: 'filter' | 'action' | 'priority'
+  menuType?: 'filter' | 'action' | 'priority' | 'reset-filters'
   selectType?: 'header' | 'row'
-  /** When true, behavior comes from DataTable built-ins for this `id` (filter-data, priority-data, select-data, view-data) */
+  /** When true, behavior comes from DataTable built-ins for this `id` (filter-data, priority-data, select-data, view-data, reset-filters-data) */
   builtIn?: boolean,
   onClick?: ()=> void,
   menuItems?: MenuItem[]

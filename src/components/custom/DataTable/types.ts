@@ -2,7 +2,7 @@ import type { Button } from "@/components/ui/button";
 import type { DragEndEvent, SensorDescriptor, SensorOptions } from "@dnd-kit/core"
 import type { ColumnDef, ColumnPinningState, Row, SortingState, Table, VisibilityState } from "@tanstack/react-table"
 import type { LucideIcon } from "lucide-react";
-import type { HTMLProps } from "react";
+import type { HTMLProps, ReactNode } from "react";
 
 /** Optional meta for column def: custom header/cell and span (rowSpan, colSpan) */
 export type DataTableColumnMeta = {
@@ -22,6 +22,16 @@ export type DataTableColumnMeta = {
 
 export type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
 export type Data = Record<string, unknown>;
+
+/** Passed to `selectionToolbarExtra` when it is a function (runs inside DataTable context). */
+export type DataTableSelectionToolbarExtraContext = {
+  table: Table<Data>
+}
+
+/** Static nodes or inline render function for bulk-selection toolbar (no separate component needed). */
+export type DataTableSelectionToolbarExtra =
+  | ReactNode
+  | ((ctx: DataTableSelectionToolbarExtraContext) => ReactNode)
 
 export interface TopHeaderChildProps {
     filterItems?: MenuItem[];
@@ -124,6 +134,8 @@ export type DataTableContextType = {
     columnSizing: ColumnSizing,
     sensors: SensorDescriptor<SensorOptions>[],
     filterData: FilterData[], 
+    /** True when column filters, global search, or filter panel state would be cleared by “reset filter data”. */
+    hasFiltersToReset: boolean
     headerFunctions: HeaderFunctionType
     /** Column id that shows one value per physical row when using multi-value rowSpan (e.g. 'email') */
     multiValueColumnId?: string
@@ -143,6 +155,10 @@ export type DataTableContextType = {
     handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
     handleSelectData: () => void,
     handleResetFilters: () => void,
+    /** Clears column filters, global search, and filter priority state (does not reset row selection or column visibility). */
+    handleResetFilterData: () => void,
+    /** Clears row selection only (floating toolbar built-in). */
+    handleClearRowSelection: () => void,
     handleDragEnd: (event: DragEndEvent) => void,
     handleDragEndMenu: (event: DragEndEvent) => void,
     setFilterData: StateSetter<FilterData[]>,

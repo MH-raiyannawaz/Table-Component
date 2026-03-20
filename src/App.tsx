@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import type { Data } from './lib/types'
 import { DataTable, expandRowsForMultiValue } from './components/custom/DataTable'
-import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download } from 'lucide-react'
+import { Funnel, ArrowUpDown, EllipsisVertical, SlidersVertical, ListChecks, Download, RotateCcw, Trash } from 'lucide-react'
 import type { Pagination } from './components/custom/DataTable/types'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
+
+const selectionToolbarBtn =
+  'bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center'
 
 function App() {
 
@@ -67,7 +70,7 @@ function App() {
       >
         {/* TOP HEADER */}
         <DataTable.TopHeader>
-          <DataTable.LeftHeader className='justify-start flex-wrap gap-2'>
+          <DataTable.LeftHeader className='justify-start flex-wrap'>
             <DataTable.Search className='w-50' />
             {/* Built-in menus: customize label/icon via props; behavior is fixed */}
             <DataTable.Button
@@ -90,9 +93,20 @@ function App() {
               label='Priority'
               icon={ArrowUpDown}
             />
+            {/* Built-in: one-click reset filters (column filters, search, priority state) */}
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='reset-filters-data'
+              type='action'
+              builtIn
+              label='Reset filters'
+              icon={RotateCcw}
+            />
+            {/* Built-in: dropdown — reset filters only vs full table reset (incl. selection & visibility) */}
           </DataTable.LeftHeader>
 
-          <DataTable.RightHeader className='justify-end flex-wrap gap-2'>
+          <DataTable.RightHeader className='justify-end flex-wrap'>
             
             <DataTable.Button
               className='cursor-pointer shrink-0'
@@ -126,6 +140,7 @@ function App() {
                 { id: 'priority-data', type: 'action', builtIn: true, required: true, label: 'Priority (in menu)', icon: ArrowUpDown },
                 { id: 'select-data', type: 'action', builtIn: true, required: true, label: 'Select rows', icon: ListChecks },
                 { id: 'view-data', type: 'filter', builtIn: true, required: true, label: 'Column visibility', icon: SlidersVertical },
+                { id: 'reset-filters-data', type: 'action', builtIn: true, required: true, label: 'Reset filters', icon: RotateCcw },
                 { id: 'download-data', type: 'actions', builtIn: false, required: true, label: 'Download', icon: Download },
               ]}
             />
@@ -135,7 +150,40 @@ function App() {
         {/* TOP HEADER */}
 
         {/* BODY  */}
-        <DataTable.Body>
+        <DataTable.Body
+          selectionToolbarExtra={({ table }) => (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                className={selectionToolbarBtn}
+                onClick={() =>
+                  console.log(
+                    'Download selection',
+                    table.getSelectedRowModel().rows.map((r) => r.original)
+                  )
+                }
+                title="Download"
+              >
+                <Download />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className={selectionToolbarBtn}
+                onClick={() =>
+                  console.log(
+                    'Delete selection',
+                    table.getSelectedRowModel().rows.map((r) => r.original)
+                  )
+                }
+                title="Delete"
+              >
+                <Trash />
+              </Button>
+            </>
+          )}
+        >
           <DataTable.Header className='bg-slate-100 border'
             headerFunctions={{ sortable: true, draggable: true, resizable: true, canPin: true }} />
           <DataTable.Rows

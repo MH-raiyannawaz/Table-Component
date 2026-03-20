@@ -5,9 +5,9 @@ import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel
 import { type FilterData, type HeaderFunctionType, type Pagination, type TopHeaderChildProps } from "./types.ts";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType, RowActionType, ButtonProps } from "./types.ts";
+import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType, RowActionType, ButtonProps, DataTableSelectionToolbarExtra } from "./types.ts";
 import IndeterminateCheckbox from "../../custom/IndeterminateCheckbox/IndeterminateCheckbox.tsx";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, Download, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, SlidersVertical, Star, Trash } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, RotateCcw, SlidersVertical, Star } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import Dropdown from "../Dropdown/Dropdown.tsx";
@@ -411,12 +411,25 @@ export const DataTable = ({ children, className, data, total,
     }
 
     const handleResetFilters = () => {
+        table.resetColumnFilters()
+        setGlobalFilter('')
         table.resetRowSelection()
         table.resetColumnVisibility()
         if (setPagination) {
             setPagination({ pageIndex: 0, pageSize: 10 })
         }
         setFilterData([])
+    }
+
+    /** Column filters + global search + priority/filter panel state only */
+    const handleResetFilterData = () => {
+        table.resetColumnFilters()
+        setGlobalFilter('')
+        setFilterData([])
+    }
+
+    const handleClearRowSelection = () => {
+        table.resetRowSelection()
     }
 
     function handleDragEnd(event: DragEndEvent) {
@@ -469,6 +482,11 @@ export const DataTable = ({ children, className, data, total,
         }
     }, [fields])
 
+    const hasFiltersToReset =
+        filterData.length > 0 ||
+        (typeof globalFilter === 'string' && globalFilter.trim() !== '') ||
+        table.getState().columnFilters.length > 0
+
     return <DataTableContext.Provider value={{
         state: {
             data: paginatedData,
@@ -488,7 +506,8 @@ export const DataTable = ({ children, className, data, total,
             columnOrder,
             columnSizing,
             sensors,
-            filterData
+            filterData,
+            hasFiltersToReset,
         },
         actions: {
             setGlobalFilter,
@@ -505,6 +524,8 @@ export const DataTable = ({ children, className, data, total,
             handleChange,
             handleSelectData,
             handleResetFilters,
+            handleResetFilterData,
+            handleClearRowSelection,
             handleDragEnd,
             handleDragEndMenu,
             setFilterData
@@ -519,7 +540,7 @@ export const DataTable = ({ children, className, data, total,
 DataTable.TopHeader = ({ children, className }: { children?: React.ReactNode, className?: string }) => {
 
     const { state: { table, columns, filterData },
-        actions: { setFilterData, handleSelectData } } = useDataTableContext()
+        actions: { setFilterData, handleSelectData, handleResetFilterData } } = useDataTableContext()
 
     const handleFilterMultipleSelect = (id: string, label: string) => {
         const existing = filterData.find(f => f.id === id)
@@ -770,6 +791,7 @@ DataTable.TopHeader = ({ children, className }: { children?: React.ReactNode, cl
     const actionItemsHeader: MenuItem[] = [
         { id: 'select-data', type: 'action', label: 'Select Data', builtIn: true, onClick: handleSelectData, icon: ListChecks },
         { id: 'view-data', type: 'filter', label: 'Views Data', builtIn: true, icon: SlidersVertical, subItems: actionSubItemsHeader || null },
+        { id: 'reset-filters-data', type: 'action', label: 'Reset filters', builtIn: true, onClick: handleResetFilterData, icon: RotateCcw },
     ]
 
     return (
@@ -833,12 +855,13 @@ const BUILT_IN_DEFAULT_LABELS: Record<string, string> = {
     'priority-data': 'Priority',
     'select-data': 'Select Data',
     'view-data': 'Views Data',
+    'reset-filters-data': 'Reset filters',
 }
 
 DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, builtIn, id, actionItemsHeader, headerItems, filterItems }:
     Item & { headerItems?: MenuItem[], className?: string, variant?: ButtonProps["variant"] } & TopHeaderChildProps) => {
 
-    const { state: { filterData }, actions: { handleDragEndMenu } } = useDataTableContext()
+    const { state: { filterData, hasFiltersToReset }, actions: { handleDragEndMenu, handleResetFilterData, handleResetFilters } } = useDataTableContext()
 
     const builtInBase = actionItemsHeader?.find((item) => item.id === resolveBuiltInMenuId(id))
     const effectiveLabel =
@@ -867,6 +890,34 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
                     label={effectiveLabel || ""}
                     menuItems={filterItems}
                 >
+                    <Button variant={variant} className={className}>
+                        {Icon && <Icon />}
+                    </Button>
+                </Dropdown>
+            )
+        }
+
+        if (menuType === 'reset-filters') {
+            const resetMenuItems: MenuItem[] = [
+                {
+                    id: 'reset-filters-data-only',
+                    type: 'action',
+                    label: 'Reset filters',
+                    onClick: () => {
+                        handleResetFilterData()
+                    },
+                },
+                {
+                    id: 'reset-filters-data-full',
+                    type: 'action',
+                    label: 'Reset filters, visibility & selection',
+                    onClick: () => {
+                        handleResetFilters()
+                    },
+                },
+            ]
+            return (
+                <Dropdown label={effectiveLabel || BUILT_IN_DEFAULT_LABELS['reset-filters-data'] || ''} menuItems={resetMenuItems}>
                     <Button variant={variant} className={className}>
                         {Icon && <Icon />}
                     </Button>
@@ -910,7 +961,13 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
             ]
 
             /** Keep `filter-data` as one row under Actions; submenu lists column filters (standalone Filter button still uses menuItems={filterItems}). */
-            const expanded: MenuItem[] = combinedArray.filter((c) => c.required !== false)
+            const expanded: MenuItem[] = combinedArray
+                .filter((c) => c.required !== false)
+                .filter((item) => {
+                    const rid = resolveBuiltInMenuId(item.id)
+                    if (rid === 'reset-filters-data' && !hasFiltersToReset) return false
+                    return true
+                })
 
             return (
                 <Dropdown
@@ -1016,6 +1073,19 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
                     </Dropdown>
                 )
             }
+
+            if (rid === 'reset-filters-data') {
+                if (!hasFiltersToReset) {
+                    return null
+                }
+                const onReset = base?.onClick ?? handleResetFilterData
+                return (
+                    <Button variant={variant} onClick={() => onReset()} className={className}>
+                        {el}
+                        {BtnIcon && <BtnIcon />}
+                    </Button>
+                )
+            }
         }
 
         return (
@@ -1033,9 +1103,38 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
     return null
 }
 
-DataTable.Body = ({ children, className }: { children?: ReactNode, className?: string }) => {
+const defaultClearSelectionBtn =
+    "bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center"
 
-    let { state: { table, filterData, sensors }, actions: { handleResetFilters, handleDragEnd } } = useDataTableContext()
+DataTable.Body = ({
+    children,
+    className,
+    selectionToolbarExtra,
+    selectionToolbarClassName,
+    clearSelectionLabel = "Clear selection",
+    clearSelectionButtonClassName,
+    showSelectionToolbar = true,
+}: {
+    children?: ReactNode
+    className?: string
+    /** Custom actions next to built-in “Clear selection”. Pass a function `({ table }) => …` to use the table inline without `useDataTableContext`. */
+    selectionToolbarExtra?: DataTableSelectionToolbarExtra
+    /** Class on the floating toolbar wrapper (default: fixed bar centered at bottom). */
+    selectionToolbarClassName?: string
+    /** Label for the built-in clear-selection control. */
+    clearSelectionLabel?: string
+    /** Class for the built-in clear button (defaults to slate bar style). */
+    clearSelectionButtonClassName?: string
+    /** When false, no floating toolbar appears when rows are selected. */
+    showSelectionToolbar?: boolean
+}) => {
+
+    let { state: { table, filterData, sensors }, actions: { handleClearRowSelection, handleDragEnd } } = useDataTableContext()
+
+    const resolvedSelectionToolbarExtra =
+        typeof selectionToolbarExtra === "function"
+            ? selectionToolbarExtra({ table })
+            : selectionToolbarExtra
 
     useEffect(() => {
         if (filterData.length > 0) {
@@ -1092,15 +1191,23 @@ DataTable.Body = ({ children, className }: { children?: ReactNode, className?: s
                 <Table className="border-collapse h-full w-full">
                     {children}
                 </Table>
-                {table.getSelectedRowModel().rows.length > 0 && <div className="fixed left-[50%] bottom-30 -translate-x-[50%] z-30 flex bg-white p-2 shadow-lg rounded-lg space-x-2">
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" onClick={() => handleResetFilters()} >Clear Selection</Button>
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" >
-                        <Download />
-                    </Button>
-                    <Button className="bg-slate-400! hover:bg-slate-500! text-white hover:text-white outline-none h-9 flex items-center" >
-                        <Trash />
-                    </Button>
-                </div>}
+                {showSelectionToolbar && table.getSelectedRowModel().rows.length > 0 && (
+                    <div
+                        className={
+                            selectionToolbarClassName ??
+                            "fixed left-[50%] bottom-30 -translate-x-[50%] z-30 flex items-center bg-white p-2 shadow-lg rounded-lg gap-2"
+                        }
+                    >
+                        <Button
+                            type="button"
+                            className={clearSelectionButtonClassName ?? defaultClearSelectionBtn}
+                            onClick={() => handleClearRowSelection()}
+                        >
+                            {clearSelectionLabel}
+                        </Button>
+                        {resolvedSelectionToolbarExtra}
+                    </div>
+                )}
             </div>
         </DndContext>
     )
