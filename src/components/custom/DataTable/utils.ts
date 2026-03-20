@@ -1,6 +1,34 @@
 import type { Column } from "@tanstack/react-table"
 import type { CSSProperties } from "react"
+import { isValidElement } from "react"
 import type { Data, FilterType, MenuSubItem, Range } from "./types"
+
+/**
+ * Whether a column should appear in the filter UI: every non-nullish value must be
+ * `string`, `number`, or `boolean` (no objects, arrays, React nodes, Dates, etc.),
+ * and at least one non-empty scalar value must exist in the sample.
+ */
+export function isColumnFilterableScalarField(values: unknown[]): boolean {
+  let hasFilterableValue = false
+  for (const v of values) {
+    if (v === null || v === undefined) continue
+    if (typeof v === "string") {
+      if (v.trim() !== "") hasFilterableValue = true
+      continue
+    }
+    if (typeof v === "number") {
+      if (!Number.isNaN(v)) hasFilterableValue = true
+      continue
+    }
+    if (typeof v === "boolean") {
+      hasFilterableValue = true
+      continue
+    }
+    if (isValidElement(v)) return false
+    return false
+  }
+  return hasFilterableValue
+}
 
 export const getPinnedColumnStyle = <TData, TValue>(column: Column<TData, TValue>, tableType: string): CSSProperties => {
   const isPinned = column.getIsPinned()

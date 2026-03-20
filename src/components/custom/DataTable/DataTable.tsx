@@ -14,7 +14,7 @@ import Dropdown from "../Dropdown/Dropdown.tsx";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { CSS } from '@dnd-kit/utilities';
-import { getFilterData, getFilterType, getPinnedColumnStyle } from './utils.ts';
+import { getFilterData, getFilterType, getPinnedColumnStyle, isColumnFilterableScalarField } from './utils.ts';
 import type { Item } from '@/lib/types.ts';
 import type { DataTableColumnMeta } from './types.ts';
 
@@ -668,7 +668,13 @@ DataTable.TopHeader = ({ children, className }: { children?: React.ReactNode, cl
 
     let filterItems: MenuItem[]
     filterItems = columns
-        .filter(column => column.id !== 'select')
+        .filter((column) => column.id !== 'select' && column.id !== 'actions')
+        .filter((column) => {
+            const cellValues = table.getCoreRowModel().rows.map(
+                (row) => row.original[column.id as string]
+            )
+            return isColumnFilterableScalarField(cellValues)
+        })
         .map(column => {
             const storedFilter = filterData.find(d => d.id === column.id)
 
