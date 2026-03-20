@@ -67,20 +67,69 @@ function App() {
       >
         {/* TOP HEADER */}
         <DataTable.TopHeader>
-          <DataTable.LeftHeader className='justify-start'>
+          <DataTable.LeftHeader className='justify-start flex-wrap gap-2'>
             <DataTable.Search className='w-50' />
-            <DataTable.Button variant={'outline'} id='filter-data' type='menu' menuType={'filter'} label='Filter' icon={Funnel} />
-            <DataTable.Button variant={'outline'} id='priority-data' type='menu' menuType={'priority'} label='Priority' icon={ArrowUpDown} />
+            {/* Built-in menus: customize label/icon via props; behavior is fixed */}
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='filter-data'
+              type='menu'
+              menuType='filter'
+              builtIn
+              label='Filter'
+              icon={Funnel}
+            />
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='priority-data'
+              type='menu'
+              menuType='priority'
+              builtIn
+              label='Priority'
+              icon={ArrowUpDown}
+            />
           </DataTable.LeftHeader>
 
-          <DataTable.RightHeader className='justify-end'>
-            <DataTable.Button variant={'outline'} id='action-data' type='menu' menuType={'action'} label='Actions' icon={EllipsisVertical}
+          <DataTable.RightHeader className='justify-end flex-wrap gap-2'>
+            
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='select-data'
+              type='action'
+              builtIn
+              label='Select rows'
+              icon={ListChecks}
+            />
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='view-data'
+              type='action'
+              builtIn
+              label='Column visibility'
+              icon={SlidersVertical}
+            />
+            
+            <DataTable.Button
+              className='cursor-pointer shrink-0'
+              variant='outline'
+              id='action-data'
+              type='menu'
+              menuType='action'
+              label='Actions'
+              icon={EllipsisVertical}
               headerItems={[
-                { id: 'select-data', type: 'action', builtIn: true, required: true, label: 'Select Datas', icon: ListChecks },
-                { id: 'views-data', type: 'filter', builtIn: true, required: true, label: 'Views Datas', icon: SlidersVertical },
-                { id: 'download-data', type: 'actions', builtIn: false, label: 'Download', icon: Download }
-              ]} />
-            <DataTable.Button variant={'outline'} id='create-data' type='action' label='Create Data' />
+                { id: 'filter-data', type: 'filter', builtIn: true, required: true, label: 'Filter (in menu)', icon: Funnel },
+                { id: 'priority-data', type: 'action', builtIn: true, required: true, label: 'Priority (in menu)', icon: ArrowUpDown },
+                { id: 'select-data', type: 'action', builtIn: true, required: true, label: 'Select rows', icon: ListChecks },
+                { id: 'view-data', type: 'filter', builtIn: true, required: true, label: 'Column visibility', icon: SlidersVertical },
+                { id: 'download-data', type: 'actions', builtIn: false, required: true, label: 'Download', icon: Download },
+              ]}
+            />
+            <DataTable.Button className='cursor-pointer shrink-0' variant='outline' id='create-data' type='action' label='Create Data' />
           </DataTable.RightHeader>
         </DataTable.TopHeader>
         {/* TOP HEADER */}

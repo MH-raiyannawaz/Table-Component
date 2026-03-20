@@ -7,10 +7,12 @@ import {
   DropdownMenuPortal,
   DropdownMenuShortcut,
   DropdownMenuSub,
+  DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { type ReactNode } from "react"
+import { Fragment, type ReactNode } from "react"
+import IndeterminateCheckbox from "../IndeterminateCheckbox/IndeterminateCheckbox"
 import RangeFilter from "./Filters/RangeFilter"
 import CalenderFilter from "./Filters/CalenderFilter"
 import MultipleSelectFilter from "./Filters/MultipleSelectFilter"
@@ -19,9 +21,26 @@ import SelectFilter from "./Filters/SelectFilter"
 import type { DragEndEvent } from "@dnd-kit/core"
 import type { Data, FilterData, MenuItem } from "../DataTable/types"
 
-export default function Dropdown({ children, label, draggable, menuItems, filterData, handleDragEnd, data }:
+/** Portal content for one column filter (same as single `type === 'filter'` row). */
+function FilterColumnPortal({ menuItem, allMenuItems }: { menuItem: MenuItem; allMenuItems: MenuItem[] }) {
+  return (
+    <>
+      {menuItem.filterType === "boolean" ? (
+        <SelectFilter menuItem={menuItem} />
+      ) : menuItem.filterType === "number" ? (
+        <RangeFilter menuItem={menuItem} />
+      ) : menuItem.filterType === "date" ? (
+        <CalenderFilter menuItem={menuItem} />
+      ) : (
+        <MultipleSelectFilter menuItem={menuItem} menuItems={allMenuItems} />
+      )}
+    </>
+  )
+}
+
+export default function Dropdown({ children, label, draggable, menuItems, filterData, handleDragEnd, data, filterItems, insideActionsMenu }:
   { children: ReactNode, label: string, draggable?: Boolean,  menuItems?: MenuItem[], filterData?: FilterData[], 
-    handleDragEnd?: (event: DragEndEvent) => void, data?: Data }) {
+    handleDragEnd?: (event: DragEndEvent) => void, data?: Data, filterItems?: MenuItem[], insideActionsMenu?: boolean }) {
     return (
     <DropdownMenu>
       {/* Button */}
@@ -42,26 +61,74 @@ export default function Dropdown({ children, label, draggable, menuItems, filter
             {
               menuItems?.map(menuItem => {
                 let { icon: Icon } = menuItem
+                // Built-in filter priority: draggable list inside Actions (or other) menu
+                if (menuItem.id === 'priority-data' && filterData && handleDragEnd) {
+                  return (
+                    <DropdownMenuSub key={menuItem.id}>
+                      <DropdownMenuSubTrigger className="flex items-center gap-2">
+                        {menuItem.label}
+                        {Icon && <Icon className="h-4 w-4" />}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="min-w-52 p-2" alignOffset={-4}>
+                          <ProrityOrder filterData={filterData} handleDragEnd={handleDragEnd} />
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  )
+                }
+                // Actions menu: all column filters under one "Filter" submenu tab
+                if (menuItem.id === "filter-data" && insideActionsMenu && filterItems?.length) {
+                  return (
+                    <DropdownMenuSub key={menuItem.id}>
+                      <DropdownMenuSubTrigger className="flex items-center gap-2">
+                        {menuItem.label}
+                        {Icon && <Icon className="h-4 w-4" />}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="min-w-52 p-0" alignOffset={-4}>
+                          {filterItems.map((fi) => (
+                            <DropdownMenuSub key={fi.id}>
+                              <DropdownMenuSubTrigger>{fi.label}</DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <FilterColumnPortal menuItem={fi} allMenuItems={filterItems} />
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  )
+                }
+                // Standalone Columns button: flat list (not nested under a second tab)
+                if (menuItem.id === 'view-data' && menuItem.subItems?.length && !insideActionsMenu) {
+                  return (
+                    <Fragment key={menuItem.id}>
+                      {menuItem.subItems.map((subItem) => (
+                        <DropdownMenuItem
+                          key={subItem.id}
+                          onSelect={(e) => e.preventDefault()}
+                          className="flex justify-between items-center gap-2"
+                        >
+                          <span>{subItem.label}</span>
+                          <IndeterminateCheckbox
+                            {...{
+                              size: 40,
+                              checked: subItem.checked,
+                              onCheck: subItem.onCheck,
+                            }}
+                          />
+                        </DropdownMenuItem>
+                      ))}
+                    </Fragment>
+                  )
+                }
                 return menuItem.type === 'filter' ?
                 // Filter 
                 <DropdownMenuSub key={menuItem.id}>
                     <DropdownMenuSubTrigger>{menuItem.label}</DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
-                      {menuItem.filterType === 'boolean' ?
-                        //Multiple
-                        <SelectFilter menuItem={menuItem}/> :
-                        //Multiple
-                        //Range
-                        menuItem.filterType === 'number' ?
-                        <RangeFilter menuItem={menuItem} />
-                        // Range 
-                        // Calendar 
-                        : menuItem.filterType === 'date' ? <CalenderFilter menuItem={menuItem} />
-                          // Calendar 
-                          // Multiple Select 
-                          : <MultipleSelectFilter menuItem={menuItem} menuItems={menuItems}/>
-                        // Multiple Select 
-                      }
+                      <FilterColumnPortal menuItem={menuItem} allMenuItems={menuItems ?? []} />
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
                   // Filter 

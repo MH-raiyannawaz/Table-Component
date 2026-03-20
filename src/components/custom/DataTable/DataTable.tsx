@@ -768,8 +768,8 @@ DataTable.TopHeader = ({ children, className }: { children?: React.ReactNode, cl
         }))
 
     const actionItemsHeader: MenuItem[] = [
-        { id: 'select-data', type: 'action', label: 'Select Data', onClick: handleSelectData, icon: ListChecks },
-        { id: 'views-data', type: 'filter', label: 'Views Data', icon: SlidersVertical, subItems: actionSubItemsHeader || null },
+        { id: 'select-data', type: 'action', label: 'Select Data', builtIn: true, onClick: handleSelectData, icon: ListChecks },
+        { id: 'view-data', type: 'filter', label: 'Views Data', builtIn: true, icon: SlidersVertical, subItems: actionSubItemsHeader || null },
     ]
 
     return (
@@ -825,18 +825,32 @@ DataTable.Search = ({className}:{className?: string}) => {
     return <Input type="text" placeholder={'Search'} value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} className={className} />
 }
 
-DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, actionItemsHeader, headerItems, filterItems }: 
+/** Normalize legacy id `views-data` to `view-data` for built-in registry */
+const resolveBuiltInMenuId = (menuId: string) => (menuId === 'views-data' ? 'view-data' : menuId)
+
+const BUILT_IN_DEFAULT_LABELS: Record<string, string> = {
+    'filter-data': 'Filter',
+    'priority-data': 'Priority',
+    'select-data': 'Select Data',
+    'view-data': 'Views Data',
+}
+
+DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, builtIn, id, actionItemsHeader, headerItems, filterItems }:
     Item & { headerItems?: MenuItem[], className?: string, variant?: ButtonProps["variant"] } & TopHeaderChildProps) => {
 
     const { state: { filterData }, actions: { handleDragEndMenu } } = useDataTableContext()
 
-    const Icon = icon
+    const builtInBase = actionItemsHeader?.find((item) => item.id === resolveBuiltInMenuId(id))
+    const effectiveLabel =
+        builtIn && builtInBase ? (label ?? builtInBase.label) : (label ?? (builtIn ? BUILT_IN_DEFAULT_LABELS[id] : undefined) ?? '')
+    const EffectiveIcon = builtIn && builtInBase?.icon ? (icon ?? builtInBase.icon) : icon
+    const Icon = EffectiveIcon
 
     if (type === 'menu') {
 
         if (menuType === 'priority') {
             return <Dropdown
-                label={label || ""}
+                label={effectiveLabel || ""}
                 draggable={true}
                 filterData={filterData}
                 handleDragEnd={handleDragEndMenu}
@@ -850,7 +864,7 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
         if (menuType === 'filter') {
             return (
                 <Dropdown
-                    label={label || ""}
+                    label={effectiveLabel || ""}
                     menuItems={filterItems}
                 >
                     <Button variant={variant} className={className}>
@@ -861,27 +875,51 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
         }
 
         if (menuType === 'action') {
-            const combinedArray: MenuItem[] = [
-                // Step 1: Update existing items
-                ...actionItemsHeader.map(itemOne => {
-                    const updatedItem = headerItems?.find(itemTwo => itemTwo.id === itemOne.id);
-
+            const mergeWithRegistry = (item: MenuItem): MenuItem => {
+                const rid = resolveBuiltInMenuId(item.id)
+                const base = actionItemsHeader?.find((a) => a.id === rid)
+                if (item.builtIn && base) {
                     return {
-                        ...itemOne,
-                        ...updatedItem, // override existing keys
-                    };
-                }),
+                        ...base,
+                        ...item,
+                        id: rid,
+                        label: item.label ?? base.label,
+                        icon: item.icon ?? base.icon,
+                    }
+                }
+                return { ...item, id: rid }
+            }
 
-                // Step 2: Add new items that don't exist in actionItemsHeader
-                ...(headerItems?.filter(
-                    itemTwo => !actionItemsHeader.some(itemOne => itemOne.id === itemTwo.id)
-                ) || [])
-            ];
+            const combinedArray: MenuItem[] = [
+                ...actionItemsHeader.map((itemOne) => {
+                    const updatedItem = headerItems?.find(
+                        (h) => resolveBuiltInMenuId(h.id) === itemOne.id
+                    )
+                    return mergeWithRegistry(
+                        updatedItem ? { ...itemOne, ...updatedItem, id: itemOne.id } : itemOne
+                    )
+                }),
+                ...(headerItems
+                    ?.filter(
+                        (h) =>
+                            !actionItemsHeader.some(
+                                (a) => a.id === resolveBuiltInMenuId(h.id)
+                            )
+                    )
+                    .map((h) => mergeWithRegistry(h)) || []),
+            ]
+
+            /** Keep `filter-data` as one row under Actions; submenu lists column filters (standalone Filter button still uses menuItems={filterItems}). */
+            const expanded: MenuItem[] = combinedArray.filter((c) => c.required !== false)
 
             return (
                 <Dropdown
-                    label={label || ""}
-                    menuItems={combinedArray?.filter(comArr => comArr.required !== false)}
+                    label={effectiveLabel || ""}
+                    menuItems={expanded}
+                    filterData={filterData}
+                    handleDragEnd={handleDragEndMenu}
+                    filterItems={filterItems}
+                    insideActionsMenu
                 >
                     <Button variant={variant} className={`${className} cursor-pointer `}>
                         {Icon && <Icon />}
@@ -921,9 +959,68 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
     // }
 
     if (type === 'action') {
+        if (builtIn) {
+            const rid = resolveBuiltInMenuId(id)
+            const base = actionItemsHeader?.find((a) => a.id === rid)
+            const el = label ?? base?.label ?? BUILT_IN_DEFAULT_LABELS[rid] ?? ''
+            const BtnIcon = icon ?? base?.icon
+
+            if (rid === 'select-data' && base?.onClick) {
+                return (
+                    <Button variant={variant} onClick={() => base.onClick?.()} className={className}>
+                        {el}
+                        {BtnIcon && <BtnIcon />}
+                    </Button>
+                )
+            }
+
+            if (rid === 'filter-data' && filterItems?.length) {
+                return (
+                    <Dropdown label={el} menuItems={filterItems}>
+                        <Button variant={variant} className={className}>
+                            {el}
+                            {BtnIcon && <BtnIcon />}
+                        </Button>
+                    </Dropdown>
+                )
+            }
+
+            if (rid === 'priority-data') {
+                return (
+                    <Dropdown
+                        label={el}
+                        draggable={true}
+                        filterData={filterData}
+                        handleDragEnd={handleDragEndMenu}
+                    >
+                        <Button variant={variant} className={className}>
+                            {el}
+                            {BtnIcon && <BtnIcon />}
+                        </Button>
+                    </Dropdown>
+                )
+            }
+
+            if (rid === 'view-data' && base?.subItems) {
+                const viewMenuItem: MenuItem = {
+                    ...base,
+                    label: el,
+                    icon: BtnIcon ?? base.icon,
+                }
+                return (
+                    <Dropdown label={el} menuItems={[viewMenuItem]} filterData={filterData} handleDragEnd={handleDragEndMenu}>
+                        <Button variant={variant} className={className}>
+                            {el}
+                            {BtnIcon && <BtnIcon />}
+                        </Button>
+                    </Dropdown>
+                )
+            }
+        }
+
         return (
             <Button
-                variant={variant} 
+                variant={variant}
                 onClick={onClick}
                 className={className}
             >

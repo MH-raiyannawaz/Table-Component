@@ -29,6 +29,8 @@ export type Item = {
   searchable?: boolean,
   menuType?: 'filter' | 'action' | 'priority'
   selectType?: 'header' | 'row'
+  /** When true, behavior comes from DataTable built-ins for this `id` (filter-data, priority-data, select-data, view-data) */
+  builtIn?: boolean,
   onClick?: ()=> void,
   menuItems?: MenuItem[]
 }
