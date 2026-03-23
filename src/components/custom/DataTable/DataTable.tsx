@@ -7,8 +7,8 @@ import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable 
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Data, StateSetter, MenuItem, MenuSubItem, DataTableContextType, RowActionType, ButtonProps, DataTableSelectionToolbarExtra } from "./types.ts";
 import IndeterminateCheckbox from "../../custom/IndeterminateCheckbox/IndeterminateCheckbox.tsx";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, RotateCcw, SlidersVertical, Star } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button.tsx";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ChevronUp, EllipsisVertical, GripVertical, ListChecks, PinIcon, PinOff, RotateCcw, SlidersVertical } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import Dropdown from "../Dropdown/Dropdown.tsx";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
@@ -346,7 +346,7 @@ export const DataTable = ({ children, className, data, total,
             ...(isRowActions ? [{
                 id: 'actions',
                 header: isRowActions.headerLabel || 'Actions',
-                cell: ({ row }) => {
+                cell: ({ row }: { row: Row<Data> }) => {
                     let { label } = isRowActions
                     return <div className="text-center">
                         <Dropdown label={label || 'Actions'} menuItems={isRowActions?.rowItems} data={row.original}>
@@ -947,8 +947,10 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
                 return { ...item, id: rid }
             }
 
+            const safeActionItemsHeader = actionItemsHeader ?? []
+
             const combinedArray: MenuItem[] = [
-                ...actionItemsHeader.map((itemOne) => {
+                ...safeActionItemsHeader.map((itemOne) => {
                     const updatedItem = headerItems?.find(
                         (h) => resolveBuiltInMenuId(h.id) === itemOne.id
                     )
@@ -959,7 +961,7 @@ DataTable.Button = ({ className, variant, label, type, menuType, icon, onClick, 
                 ...(headerItems
                     ?.filter(
                         (h) =>
-                            !actionItemsHeader.some(
+                            !safeActionItemsHeader.some(
                                 (a) => a.id === resolveBuiltInMenuId(h.id)
                             )
                     )
@@ -1323,10 +1325,34 @@ DataTable.Rows = ({ isRowActions, className }: { isRowActions?: RowActionType, c
     );
 }
 
-DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant, maxVisiblePages = 5, showRowRange = true }:
-    { extendedPaginations?: boolean; className?: string; buttonClassName?: string; buttonVariant?: ButtonProps["variant"]; maxVisiblePages?: number; showRowRange?: boolean }) => {
+DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassName, buttonVariant, maxVisiblePages = 5, showRowRange = true, buttonLabel = false }:
+    { extendedPaginations?: boolean; className?: string; buttonClassName?: string; buttonVariant?: ButtonProps["variant"]; maxVisiblePages?: number; showRowRange?: boolean; buttonLabel?: boolean }) => {
 
     const { state: { table, total, pagination }, actions: { setPagination } } = useDataTableContext()
+
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+
+        const mq = window.matchMedia('(max-width: 640px)')
+        const update = () => setIsMobile(mq.matches)
+        update()
+
+        // Safari fallback: addListener/removeListener
+        if (mq.addEventListener) {
+            mq.addEventListener('change', update)
+            return () => mq.removeEventListener('change', update)
+        }
+
+        mq.addListener(update)
+        return () => mq.removeListener(update)
+    }, [])
+
+    const effectiveMaxVisiblePages = isMobile ? Math.min(3, maxVisiblePages) : maxVisiblePages
+    const showExtended = extendedPaginations && !isMobile
+    const showPrevNextText = buttonLabel === true
+    const arrowButtonSize = isMobile ? (showPrevNextText ? 'sm' : 'icon-sm') : (showPrevNextText ? 'sm' : 'icon')
 
     const pageSize = Math.max(1, pagination?.pageSize ?? 10)
     const totalRows = total ?? 0
@@ -1336,48 +1362,55 @@ DataTable.Paginations = ({ extendedPaginations = false, className, buttonClassNa
     const endRow = Math.min((currentPage + 1) * pageSize, totalRows)
 
     const visiblePageIndices: number[] = (() => {
-        if (pageCount <= maxVisiblePages) {
+        if (pageCount <= effectiveMaxVisiblePages) {
             return Array.from({ length: pageCount }, (_, i) => i)
         }
-        const half = Math.floor(maxVisiblePages / 2)
+        const half = Math.floor(effectiveMaxVisiblePages / 2)
         let start = Math.max(0, currentPage - half)
-        let end = Math.min(pageCount, start + maxVisiblePages)
-        if (end - start < maxVisiblePages) start = Math.max(0, end - maxVisiblePages)
+        let end = Math.min(pageCount, start + effectiveMaxVisiblePages)
+        if (end - start < effectiveMaxVisiblePages) start = Math.max(0, end - effectiveMaxVisiblePages)
         return Array.from({ length: end - start }, (_, i) => start + i)
     })()
 
     return (
-        <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+        <div className={`flex flex-col gap-2 ${className} sm:flex-row sm:items-center`}>
             {showRowRange && (
-                <span className="text-muted-foreground text-sm whitespace-nowrap">
+                <span className="text-muted-foreground text-sm whitespace-nowrap text-center sm:text-left">
                     {totalRows === 0 ? '0 rows' : `${startRow}–${endRow} of ${totalRows}`}
                 </span>
             )}
-            <div className="flex items-center gap-1.5">
-            {extendedPaginations && (
-                <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()} size="icon" className={buttonClassName}>
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-center">
+            {showExtended && (
+                <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()} size={arrowButtonSize} className={buttonClassName}>
                     <ChevronsLeft className="h-4 w-4" />
                 </Button>
             )}
-            <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()} size="icon" className={buttonClassName}>
+            <Button variant={buttonVariant} disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()} size={arrowButtonSize} className={buttonClassName}>
                 <ChevronLeft className="h-4 w-4" />
+                {showPrevNextText && <span className="ml-1">Prev</span>}
             </Button>
-            {visiblePageIndices.map((pageIndex) => (
-                <Button
-                    key={pageIndex}
-                    variant={buttonVariant}
-                    size="sm"
-                    disabled={currentPage === pageIndex}
-                    onClick={() => setPagination?.({ ...pagination!, pageIndex })}
-                >
-                    {pageIndex + 1}
-                </Button>
-            ))}
-            <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.nextPage()} size="icon" className={buttonClassName}>
+
+            <div className="flex flex-1 flex-wrap items-center justify-center gap-1.5">
+                {visiblePageIndices.map((pageIndex) => (
+                    <Button
+                        key={pageIndex}
+                        variant={buttonVariant}
+                        size="sm"
+                        disabled={currentPage === pageIndex}
+                        onClick={() => setPagination?.({ ...pagination!, pageIndex })}
+                        className="min-w-9"
+                    >
+                        {pageIndex + 1}
+                    </Button>
+                ))}
+            </div>
+
+            <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.nextPage()} size={arrowButtonSize} className={buttonClassName}>
+                {showPrevNextText && <span className="ml-1">Next</span>}
                 <ChevronRight className="h-4 w-4" />
             </Button>
-            {extendedPaginations && (
-                <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.lastPage()} size="icon" className={buttonClassName}>
+            {showExtended && (
+                <Button variant={buttonVariant} disabled={!table.getCanNextPage()} onClick={() => table.lastPage()} size={arrowButtonSize} className={buttonClassName}>
                     <ChevronsRight className="h-4 w-4" />
                 </Button>
             )}
